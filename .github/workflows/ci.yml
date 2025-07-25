@@ -44,7 +44,7 @@ jobs:
         bandit -r . -f json -o security-report.json || true
     
     - name: Upload security report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: security-report
         path: security-report.json
@@ -111,7 +111,7 @@ jobs:
         pytest tests/ --cov=. --cov-report=xml --cov-report=html
     
     - name: Upload coverage reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-${{ matrix.test-type }}
         path: |
@@ -167,7 +167,7 @@ jobs:
         "
     
     - name: Upload GPU test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gpu-test-results
         path: |
@@ -241,7 +241,7 @@ jobs:
         "
     
     - name: Upload fitness tracking results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: fitness-tracking-results
         path: fitness_tracking_results.json
@@ -271,7 +271,7 @@ jobs:
         cd release && tar -czf riper-omega-$(date +%Y%m%d).tar.gz riper-omega/
     
     - name: Upload release artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-package
         path: release/*.tar.gz
