@@ -1,16 +1,24 @@
 # RIPER-Ω Multi-Agent Orchestration System
 
-A self-evolving AI system incorporating RIPER-Ω protocol v2.5 for multi-agent orchestration with evolutionary algorithms, secure A2A communications, and GPU-optimized neural networks.
+A self-evolving AI system incorporating RIPER-Ω protocol v2.6 for multi-agent orchestration with evolutionary algorithms, secure A2A communications, and GPU-optimized neural networks. Enhanced with fitness-tied bias mitigation and RL-inspired rewards.
 
 ## Overview
 
 This project implements a sophisticated multi-agent system that combines:
 
-- **RIPER-Ω Protocol v2.5**: Strict, auditable code modifications with GPU-local simulation and evolutionary workflows
+- **RIPER-Ω Protocol v2.6**: Strict, auditable code modifications with fitness-tied bias mitigation and RL-inspired rewards
 - **A2A Communications**: Secure goal exchange and coordination per specifications from a2aprotocol.ai
 - **Qwen3 Models**: Leveraging Qwen3-Coder-480B-A35B-Instruct for coding excellence (July 2025 benchmarks: CodeForces ELO, LiveCodeBench v5)
 - **Ollama Specialists**: Local GPU tasks optimized for RTX 3080 (7-15 tok/sec performance)
 - **DGM-Optimized EA/GA**: Neural networks using EvoTorch and DEAP for evolutionary algorithms
+
+### 🆕 RIPER-Ω v2.6 Enhancements
+
+- **Fitness-Tied Bias Mitigation**: False positives in summaries lower fitness, triggering evolutionary mutations
+- **RL-Inspired Rewards**: Enhanced self-correction using fitness-as-reward paradigm
+- **Bias Detection System**: Automatic detection of false "PASSED" claims when failures occurred
+- **Enhanced Accuracy Thresholds**: >80% accuracy requirement in REVIEW mode
+- **Self-Audit Capabilities**: Real-time bias scoring and correction mechanisms
 
 ## Architecture
 

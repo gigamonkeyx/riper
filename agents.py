@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from openrouter_client import get_openrouter_client
+from protocol import builder_output_fitness, check_builder_bias
 
 # Optional imports with fallbacks
 try:
@@ -209,6 +210,7 @@ class FitnessScorer(OllamaSpecialist):
     """
     Specialist agent for evolutionary fitness evaluation
     Uses Qwen3-Coder for intelligent fitness scoring
+    Enhanced with v2.6 bias detection and RL rewards
     """
 
     def __init__(self):
@@ -306,12 +308,16 @@ class FitnessScorer(OllamaSpecialist):
 
             execution_time = time.time() - start_time
 
+            # v2.6: Add bias detection to fitness evaluation
+            bias_analysis = self.detect_output_bias(response_text, str(fitness_evaluations))
+
             return TaskResult(
                 success=True,
                 data={
                     "fitness_score": fitness_score,
                     "evaluation": evaluation,
                     "improvement_suggestions": response_text,
+                    "bias_analysis": bias_analysis,  # v2.6 addition
                 },
                 execution_time=execution_time,
                 gpu_utilized=self.gpu_enabled,
@@ -328,6 +334,31 @@ class FitnessScorer(OllamaSpecialist):
                 gpu_utilized=False,
                 error_message=str(e),
             )
+
+    def detect_output_bias(self, output_text: str, log_text: str = "") -> Dict[str, Any]:
+        """
+        v2.6: Detect bias in fitness evaluation outputs
+        Penalizes false positives <0.70 as per RIPER-Ω protocol
+        """
+        try:
+            bias_analysis = check_builder_bias(output_text, log_text)
+
+            if bias_analysis['bias_detected']:
+                logger.warning(f"Bias detected in fitness output: {bias_analysis['fitness_score']:.3f}")
+                for detail in bias_analysis['details']:
+                    logger.warning(f"  - {detail}")
+
+            return bias_analysis
+
+        except Exception as e:
+            logger.error(f"Bias detection failed: {e}")
+            return {
+                'bias_detected': False,
+                'fitness_score': 1.0,
+                'details': [],
+                'threshold_met': True,
+                'error': str(e)
+            }
 
     def _combine_fitness_evaluations(
         self, evaluations: Dict[str, Any], current_fitness: float

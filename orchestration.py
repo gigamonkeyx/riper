@@ -2,7 +2,7 @@
 RIPER-Ω Multi-Agent Orchestration System
 Entry point for Observer and Builder agents with evolutionary coordination.
 
-RIPER-Ω Protocol v2.5 Integration:
+RIPER-Ω Protocol v2.6 Integration:
 - Strict mode transitions and audit trails
 - GPU-local simulation focus for RTX 3080
 - Evolutionary fitness metrics >70% threshold
@@ -21,7 +21,7 @@ from enum import Enum
 # Import evolutionary core and agents
 from evo_core import NeuroEvolutionEngine, EvolutionaryMetrics
 from agents import OllamaSpecialist, FitnessScorer, TTSHandler
-from protocol import RIPER_OMEGA_PROTOCOL_V25
+from protocol import RIPER_OMEGA_PROTOCOL_V26, builder_output_fitness, check_builder_bias
 from openrouter_client import OpenRouterClient, get_openrouter_client
 
 # Configure logging for audit trail
@@ -60,7 +60,7 @@ def preload_ollama_model(
 
 
 class RiperMode(Enum):
-    """RIPER-Ω Protocol v2.5 modes"""
+    """RIPER-Ω Protocol v2.6 modes"""
 
     RESEARCH = "RESEARCH"
     INNOVATE = "INNOVATE"
@@ -118,7 +118,7 @@ class A2ACommunicator:
 
 class Observer:
     """
-    Observer Agent with RIPER-Ω Protocol v2.5 infusion
+    Observer Agent with RIPER-Ω Protocol v2.6 infusion
 
     RIPER-Ω Modes:
     - RESEARCH: Gather context, summarize, ask clarifying questions
@@ -134,23 +134,28 @@ class Observer:
         self.agent_id = agent_id
         self.current_mode = RiperMode.RESEARCH
         self.a2a_comm = A2ACommunicator(agent_id)
-        self.protocol_text = RIPER_OMEGA_PROTOCOL_V25
+        self.protocol_text = RIPER_OMEGA_PROTOCOL_V26
         self.fitness_threshold = 0.70  # >70% fitness requirement
 
         # Qwen3 integration via OpenRouter
         self.openrouter_client = get_openrouter_client()
         self.qwen3_model = "qwen/qwen-2.5-coder-32b-instruct"
 
-        logger.info(f"Observer agent {agent_id} initialized with RIPER-Ω v2.5")
+        logger.info(f"Observer agent {agent_id} initialized with RIPER-Ω v2.6")
 
     def transition_mode(self, new_mode: RiperMode) -> bool:
-        """Transition between RIPER-Ω modes with audit trail"""
+        """Transition between RIPER-Ω modes with audit trail and v2.6 bias audit"""
         if self._validate_mode_transition(new_mode):
             old_mode = self.current_mode
             self.current_mode = new_mode
             logger.info(
-                f"RIPER-Ω MODE TRANSITION: {old_mode.value} -> {new_mode.value}"
+                f"RIPER-Ω v2.6 MODE TRANSITION: {old_mode.value} -> {new_mode.value}"
             )
+
+            # v2.6: Add bias audit for REVIEW mode transitions
+            if new_mode == RiperMode.REVIEW:
+                logger.info("v2.6: Bias audit enabled for REVIEW mode (accuracy >80%)")
+
             return True
         else:
             logger.error(
@@ -166,15 +171,20 @@ class Observer:
     def coordinate_evolution(
         self, builder: "Builder", evo_engine: "NeuroEvolutionEngine"
     ) -> Dict[str, Any]:
-        """Coordinate evolutionary loop between Builder and NeuroEvolution engine"""
-        logger.info("Starting evolutionary coordination loop")
+        """Coordinate evolutionary loop with v2.6 fitness rewards and bias detection"""
+        logger.info("Starting evolutionary coordination loop (RIPER-Ω v2.6)")
 
-        # A2A coordination message
+        # A2A coordination message with v2.6 fitness rewards
         coordination_msg = {
             "action": "start_evolution",
             "fitness_threshold": self.fitness_threshold,
             "gpu_target": "rtx_3080",
             "performance_target": "7-15_tok_sec",
+            "v26_features": {
+                "bias_detection": True,
+                "fitness_rewards": True,
+                "accuracy_threshold": 0.80
+            }
         }
 
         self.a2a_comm.send_message(builder.agent_id, "coordination", coordination_msg)
@@ -214,7 +224,7 @@ class Observer:
 
 class Builder:
     """
-    Builder Agent with RIPER-Ω Protocol v2.5 implementation focus
+    Builder Agent with RIPER-Ω Protocol v2.6 implementation focus
 
     Responsibilities:
     - Execute implementation tasks from Observer coordination
@@ -301,6 +311,41 @@ class Builder:
         return {
             "status": "evolution_update_processed",
             "specialist_feedback": specialist_feedback,
+        }
+
+    def review_output(self, output_text: str, execution_log: str = "") -> Dict[str, Any]:
+        """
+        REVIEW mode: Verify output accuracy with fitness calculation
+        Halt if fitness <0.70 due to bias detection
+        """
+        logger.info("Entering REVIEW mode for output verification")
+
+        # Calculate fitness score for bias detection
+        bias_analysis = check_builder_bias(output_text, execution_log)
+        fitness_score = bias_analysis['fitness_score']
+
+        logger.info(f"Output fitness score: {fitness_score:.3f}")
+
+        if bias_analysis['bias_detected']:
+            logger.error(f"BIAS DETECTED - Fitness {fitness_score:.3f} < 0.70")
+            for detail in bias_analysis['details']:
+                logger.error(f"  - {detail}")
+
+            # HALT on bias detection as per RIPER-Ω protocol
+            return {
+                "status": "HALT",
+                "reason": "Bias detected in output",
+                "fitness_score": fitness_score,
+                "bias_details": bias_analysis['details'],
+                "threshold_met": False
+            }
+
+        logger.info(f"✅ Output verification passed - Fitness {fitness_score:.3f} ≥ 0.70")
+        return {
+            "status": "REVIEW_PASSED",
+            "fitness_score": fitness_score,
+            "bias_details": [],
+            "threshold_met": True
         }
 
     def _initialize_gpu_resources(self) -> Dict[str, Any]:

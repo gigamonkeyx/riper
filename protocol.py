@@ -1,15 +1,20 @@
 """
-RIPER-Ω Protocol v2.5 Implementation
+RIPER-Ω Protocol v2.6 Implementation
 Hardcoded protocol text for agent prompt infusion with GPU evo and TTS extensions.
+Updated: July 25, 2025 - Fitness-tied bias mitigation, RL-inspired rewards, enhanced self-correction
 """
 
-RIPER_OMEGA_PROTOCOL_V25 = """
-# RIPER-Ω Protocol — LLM DIRECTIVE 2.5
-Author: Grok (xAI), with enhancements for GPU-local simulation, evo workflows, and TTS integration based on Trump Podcast Generator context.
+import re
+import logging
+from typing import Dict, Any, List, Optional
+
+RIPER_OMEGA_PROTOCOL_V26 = """
+RIPER-Ω Protocol — LLM DIRECTIVE 2.6
+Author: Grok (xAI), with fitness-tied bias mitigation and RL-inspired rewards for enhanced self-correction.
 
 Objective:
 
-Enforce strict, auditable, and safe code modifications with zero unauthorized actions. Enhanced for local lab environments (e.g., RTX 3080 GPU), evolutionary simulations (EA loops for agent/swarm optimization), and TTS/audio processing (e.g., Bark/Ollama chaining). Adds refresh mechanism for dynamic updates.
+Enforce strict, auditable, and safe code modifications with zero unauthorized actions. Enhanced for local lab environments (e.g., RTX 3080 GPU), evolutionary simulations (EA loops for agent/swarm optimization), TTS/audio processing (e.g., Bark/Ollama chaining), and now fitness-as-reward for bias detection (e.g., false positives in summaries lower fitness, triggering evo mutations).
 
 1. Modes & Workflow
 Modes: RESEARCH, INNOVATE, PLAN, EXECUTE, REVIEW
@@ -22,26 +27,30 @@ RESEARCH: Gather context, summarize, ask clarifying questions.
 Prefix: RESEARCH OBSERVATIONS:
 No solutions or recommendations.
 Use context7 mcp for latest docs; include GPU/TTS evo scans.
+Bias audit: Score summary accuracy vs logs (fitness >70%).
 LOCK MODE: Stay until ENTER {MODE} received.
 
 INNOVATE: Brainstorm and discuss approaches.
 Prefix: INNOVATION PROPOSALS:
 No planning or code; suggest evo points for GPU/sim improvements.
+Fitness reward: High for unbiased ideas (e.g., reward=accuracy).
 LOCK MODE: Stay until ENTER {MODE} received.
 
 PLAN: Create a detailed, numbered checklist for implementation.
 Prefix: IMPLEMENTATION CHECKLIST:
 No code or execution; include GPU setup/evo loops in plans.
-Use context7 mcp for specs; flag evo metrics.
+Use context7 mcp for specs; flag evo metrics and bias risks.
 LOCK MODE: Stay until ENTER {MODE} received.
 
 EXECUTE: Implement exactly as per checklist.
 Entry: ENTER EXECUTE MODE
 No deviations; halt and report if issue; verify GPU for local runs.
+Fitness tie: Low scores on outputs (e.g., ignored failures) trigger halt.
 LOCK MODE: Stay until ENTER {MODE} received.
 
 REVIEW: Line-by-line verification against the plan.
 Flag deviations; conclude with match or deviation verdict; check GPU/TTS outputs.
+Bias fitness: Audit summaries vs logs, reward high accuracy (>80%).
 LOCK MODE: Stay until ENTER {MODE} received.
 
 3. Commands
@@ -58,7 +67,8 @@ No actions outside current mode.
 Strict audit trail and standardized prefixes.
 Consistency in formatting.
 GPU Safeguards: Flag non-GPU paths; prioritize local evo for TTS/swarm.
-Evo Integration: All modes consider fitness (e.g., quality metrics for outputs).
+Evo Integration: All modes consider fitness (e.g., quality metrics for outputs), now as RL reward for bias correction.
+Bias Mitigation: Fitness penalizes false positives (e.g., claimed "PASSED" on failures).
 
 5. Tool Usage
 context7 mcp: Sync docs at start of RESEARCH/PLAN; re-fetch if >24h. For TTS/evo, prioritize Bark/Ollama/GPU docs.
@@ -264,10 +274,10 @@ def refresh_protocol() -> dict:
 
 # Metadata
 PROTOCOL_METADATA = {
-    "version": "2.5",
-    "last_updated": "July 24, 2025",
-    "sync_date": "July 24, 2025",
-    "author": "Grok (xAI) with GPU/TTS enhancements",
+    "version": "2.6",
+    "last_updated": "July 25, 2025",
+    "sync_date": "July 25, 2025",
+    "author": "Grok (xAI) with fitness-tied bias mitigation and RL rewards",
     "target_hardware": "RTX 3080",
     "performance_targets": {
         "token_generation": "7-15 tok/sec",
@@ -283,3 +293,88 @@ PROTOCOL_METADATA = {
         "CrewAI concepts",
     ],
 }
+
+
+def builder_output_fitness(output_text: str, log_text: str = "") -> float:
+    """
+    Calculate fitness score for builder output accuracy (0.0-1.0)
+
+    Detects biases like claiming "PASSED" when failures occurred.
+    Integrates with existing >70% threshold requirement.
+
+    Args:
+        output_text: Builder's summary/output text
+        log_text: Execution logs/results
+
+    Returns:
+        float: Fitness score (0.0-1.0), <0.70 indicates bias/inaccuracy
+    """
+    fitness_score = 1.0  # Start with perfect score
+
+    # Convert to lowercase for case-insensitive matching
+    output_lower = output_text.lower()
+    log_lower = log_text.lower()
+
+    # Detect false positive patterns (claiming success when failure occurred)
+    false_positive_patterns = [
+        (r'passed.*failed', -0.5),  # "PASSED" but contains "failed"
+        (r'success.*error', -0.4),  # "SUCCESS" but contains "error"
+        (r'complete.*timeout', -0.4),  # "COMPLETE" but contains "timeout"
+        (r'✅.*❌', -0.3),  # Success emoji but failure emoji present
+        (r'working.*not.*working', -0.3),  # Contradictory statements
+    ]
+
+    # Check for failure indicators in logs vs success claims in output
+    failure_indicators = ['error', 'failed', 'timeout', 'exception', 'traceback', 'halt']
+    success_claims = ['passed', 'success', 'complete', '✅', 'working']
+
+    # Count failure indicators in logs
+    failure_count = sum(1 for indicator in failure_indicators if indicator in log_lower)
+
+    # Count success claims in output
+    success_count = sum(1 for claim in success_claims if claim in output_lower)
+
+    # Major penalty if claiming success with failures present
+    if failure_count > 0 and success_count > 0:
+        fitness_score -= 0.6  # Major bias penalty
+
+    # Apply pattern-based penalties
+    for pattern, penalty in false_positive_patterns:
+        if re.search(pattern, output_lower):
+            fitness_score += penalty
+
+    # Accuracy bonus for honest failure reporting
+    if failure_count > 0 and any(word in output_lower for word in ['failed', 'error', 'halt']):
+        fitness_score += 0.1  # Honesty bonus
+
+    # Ensure score stays in valid range
+    fitness_score = max(0.0, min(1.0, fitness_score))
+
+    return fitness_score
+
+
+def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
+    """
+    Check for builder bias patterns and return detailed analysis
+
+    Returns:
+        Dict with bias_detected (bool), fitness_score (float), details (list)
+    """
+    fitness_score = builder_output_fitness(output_text, log_text)
+    bias_detected = fitness_score < 0.70
+
+    details = []
+    if bias_detected:
+        if 'passed' in output_text.lower() and any(word in log_text.lower() for word in ['error', 'failed', 'timeout']):
+            details.append("False positive: Claimed PASSED despite failures in logs")
+        if 'success' in output_text.lower() and 'error' in log_text.lower():
+            details.append("Contradictory: Claimed SUCCESS with errors present")
+        if fitness_score < 0.50:
+            details.append("Severe bias: Multiple false positive patterns detected")
+
+    return {
+        'bias_detected': bias_detected,
+        'fitness_score': fitness_score,
+        'details': details,
+        'threshold_met': fitness_score >= 0.70
+    }
