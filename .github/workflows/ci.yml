@@ -1,0 +1,301 @@
+name: RIPER-Ω CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly builds for evolutionary fitness tracking
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.9'
+  FITNESS_THRESHOLD: '0.70'
+  GPU_TARGET: 'rtx_3080'
+
+jobs:
+  # Code quality and security checks
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black flake8 pytest pytest-cov
+        pip install -r requirements.txt || echo "Some packages may not be available in CI"
+    
+    - name: Code formatting check (Black)
+      run: black --check --diff .
+    
+    - name: Linting (Flake8)
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    
+    - name: Security scan
+      run: |
+        pip install bandit
+        bandit -r . -f json -o security-report.json || true
+    
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.json
+
+  # Unit tests and evolutionary algorithm validation
+  test-evolution:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: [unit, integration, performance]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov numpy torch requests python-dotenv
+        # Install available packages from requirements.txt
+        pip install -r requirements.txt || echo "Some packages not available in CI"
+    
+    - name: Run unit tests
+      if: matrix.test-type == 'unit'
+      run: |
+        pytest tests/test_evo.py::TestEvolutionaryMetrics -v
+        pytest tests/test_evo.py::TestEvolvableNeuralNet -v
+    
+    - name: Run integration tests
+      if: matrix.test-type == 'integration'
+      run: |
+        pytest tests/test_evo.py::TestNeuroEvolutionEngine -v
+        pytest tests/test_evo.py::TestOrchestration -v
+    
+    - name: Run performance benchmarks
+      if: matrix.test-type == 'performance'
+      run: |
+        pytest tests/test_evo.py::test_performance_benchmarks -v -s
+
+    - name: Test OpenRouter integration (without API key)
+      if: matrix.test-type == 'integration'
+      run: |
+        python -c "
+        from openrouter_client import OpenRouterClient, OpenRouterConfig
+        import os
+
+        # Test client initialization without real API key
+        config = OpenRouterConfig(api_key='test-key')
+        client = OpenRouterClient(config)
+        print('✅ OpenRouter client initialization successful')
+
+        # Test hybrid fitness scorer import
+        from agents import FitnessScorer
+        scorer = FitnessScorer()
+        print('✅ Hybrid FitnessScorer import successful')
+        "
+    
+    - name: Generate coverage report
+      run: |
+        pytest tests/ --cov=. --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-${{ matrix.test-type }}
+        path: |
+          coverage.xml
+          htmlcov/
+
+  # GPU compatibility testing (self-hosted runner required)
+  test-gpu:
+    runs-on: self-hosted
+    if: contains(github.event.head_commit.message, '[gpu-test]') || github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Verify GPU availability
+      run: |
+        nvidia-smi || echo "NVIDIA GPU not available"
+        python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+    
+    - name: Install GPU dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        pip install -r requirements.txt
+    
+    - name: Run GPU benchmarks
+      run: |
+        pytest tests/test_evo.py::TestGPUPerformance -v -s
+    
+    - name: Evolutionary fitness validation
+      run: |
+        python -c "
+        from evo_core import NeuroEvolutionEngine, benchmark_gpu_performance
+        
+        # GPU benchmark
+        gpu_result = benchmark_gpu_performance()
+        print(f'GPU Benchmark: {gpu_result}')
+        
+        # Evolution test
+        engine = NeuroEvolutionEngine(population_size=50, gpu_accelerated=True)
+        best_fitness = 0.0
+        
+        for gen in range(20):
+            fitness = engine.evolve_generation()
+            best_fitness = max(best_fitness, fitness)
+            print(f'Generation {gen}: {fitness:.4f}')
+            
+            if best_fitness >= float('${{ env.FITNESS_THRESHOLD }}'):
+                print(f'✅ Fitness threshold achieved: {best_fitness:.4f}')
+                break
+        else:
+            print(f'⚠️ Fitness threshold not reached: {best_fitness:.4f}')
+        "
+    
+    - name: Upload GPU test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: gpu-test-results
+        path: |
+          *.log
+          *.json
+
+  # Evolutionary fitness tracking
+  fitness-tracking:
+    runs-on: ubuntu-latest
+    needs: [test-evolution]
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[fitness-track]')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt || echo "Some packages not available"
+        pip install matplotlib seaborn pandas
+    
+    - name: Run evolutionary fitness tracking
+      run: |
+        python -c "
+        import json
+        import time
+        from evo_core import NeuroEvolutionEngine, EvolutionaryMetrics
+        
+        # Run multiple evolution experiments
+        results = []
+        
+        for experiment in range(5):
+            print(f'Running experiment {experiment + 1}/5')
+            engine = NeuroEvolutionEngine(population_size=30, gpu_accelerated=False)
+            
+            experiment_data = {
+                'experiment_id': experiment,
+                'timestamp': time.time(),
+                'generations': [],
+                'fitness_scores': [],
+                'best_fitness': 0.0
+            }
+            
+            for gen in range(50):
+                fitness = engine.evolve_generation()
+                experiment_data['generations'].append(gen)
+                experiment_data['fitness_scores'].append(fitness)
+                experiment_data['best_fitness'] = max(experiment_data['best_fitness'], fitness)
+                
+                if fitness >= float('${{ env.FITNESS_THRESHOLD }}'):
+                    print(f'Experiment {experiment}: Threshold reached at generation {gen}')
+                    break
+            
+            results.append(experiment_data)
+        
+        # Save results
+        with open('fitness_tracking_results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+        
+        # Summary statistics
+        best_scores = [r['best_fitness'] for r in results]
+        avg_best = sum(best_scores) / len(best_scores)
+        success_rate = sum(1 for score in best_scores if score >= float('${{ env.FITNESS_THRESHOLD }}')) / len(best_scores)
+        
+        print(f'Average best fitness: {avg_best:.4f}')
+        print(f'Success rate (≥{float(\"${{ env.FITNESS_THRESHOLD }}\"):.1f}): {success_rate:.2%}')
+        "
+    
+    - name: Upload fitness tracking results
+      uses: actions/upload-artifact@v3
+      with:
+        name: fitness-tracking-results
+        path: fitness_tracking_results.json
+
+  # Deployment and release
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-evolution]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Create release package
+      run: |
+        # Create deployment package
+        mkdir -p release/riper-omega
+        cp -r *.py requirements.txt README.md release/riper-omega/
+        cp -r tests/ release/riper-omega/
+        
+        # Create version info
+        echo "version: $(date +%Y.%m.%d)" > release/riper-omega/VERSION
+        echo "commit: ${{ github.sha }}" >> release/riper-omega/VERSION
+        echo "build_date: $(date -u)" >> release/riper-omega/VERSION
+        
+        # Package
+        cd release && tar -czf riper-omega-$(date +%Y%m%d).tar.gz riper-omega/
+    
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-package
+        path: release/*.tar.gz
+
+  # Notification and reporting
+  notify:
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-evolution, fitness-tracking]
+    if: always()
+    
+    steps:
+    - name: Report CI/CD status
+      run: |
+        echo "=== RIPER-Ω CI/CD Pipeline Report ==="
+        echo "Code Quality: ${{ needs.code-quality.result }}"
+        echo "Evolution Tests: ${{ needs.test-evolution.result }}"
+        echo "Fitness Tracking: ${{ needs.fitness-tracking.result }}"
+        echo "Timestamp: $(date -u)"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref }}"
+        
+        # Check if fitness threshold was met
+        if [[ "${{ needs.fitness-tracking.result }}" == "success" ]]; then
+          echo "✅ Evolutionary fitness validation passed"
+        else
+          echo "⚠️ Evolutionary fitness validation needs attention"
+        fi

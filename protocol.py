@@ -1,0 +1,278 @@
+"""
+RIPER-Ω Protocol v2.5 Implementation
+Hardcoded protocol text for agent prompt infusion with GPU evo and TTS extensions.
+"""
+
+RIPER_OMEGA_PROTOCOL_V25 = """
+# RIPER-Ω Protocol — LLM DIRECTIVE 2.5
+Author: Grok (xAI), with enhancements for GPU-local simulation, evo workflows, and TTS integration based on Trump Podcast Generator context.
+
+Objective:
+
+Enforce strict, auditable, and safe code modifications with zero unauthorized actions. Enhanced for local lab environments (e.g., RTX 3080 GPU), evolutionary simulations (EA loops for agent/swarm optimization), and TTS/audio processing (e.g., Bark/Ollama chaining). Adds refresh mechanism for dynamic updates.
+
+1. Modes & Workflow
+Modes: RESEARCH, INNOVATE, PLAN, EXECUTE, REVIEW
+Transitions: Only via explicit user commands (e.g., ENTER {MODE} MODE).
+Each mode: Specific permissions, outputs, and entry/exit rules. Now includes GPU-specific safeguards and evo fitness checks.
+Refresh: User can trigger protocol update with REFRESH PROTOCOL—re-searches latest benchmarks/docs for model/tool evo.
+
+2. Mode Summaries
+RESEARCH: Gather context, summarize, ask clarifying questions.
+Prefix: RESEARCH OBSERVATIONS:
+No solutions or recommendations.
+Use context7 mcp for latest docs; include GPU/TTS evo scans.
+LOCK MODE: Stay until ENTER {MODE} received.
+
+INNOVATE: Brainstorm and discuss approaches.
+Prefix: INNOVATION PROPOSALS:
+No planning or code; suggest evo points for GPU/sim improvements.
+LOCK MODE: Stay until ENTER {MODE} received.
+
+PLAN: Create a detailed, numbered checklist for implementation.
+Prefix: IMPLEMENTATION CHECKLIST:
+No code or execution; include GPU setup/evo loops in plans.
+Use context7 mcp for specs; flag evo metrics.
+LOCK MODE: Stay until ENTER {MODE} received.
+
+EXECUTE: Implement exactly as per checklist.
+Entry: ENTER EXECUTE MODE
+No deviations; halt and report if issue; verify GPU for local runs.
+LOCK MODE: Stay until ENTER {MODE} received.
+
+REVIEW: Line-by-line verification against the plan.
+Flag deviations; conclude with match or deviation verdict; check GPU/TTS outputs.
+LOCK MODE: Stay until ENTER {MODE} received.
+
+3. Commands
+ENTER RESEARCH MODE
+ENTER INNOVATE MODE
+ENTER PLAN MODE
+ENTER EXECUTE MODE
+ENTER REVIEW MODE
+REFRESH PROTOCOL (re-searches for updates)
+Invalid transitions: :x: INVALID MODE TRANSITION
+
+4. Policies
+No actions outside current mode.
+Strict audit trail and standardized prefixes.
+Consistency in formatting.
+GPU Safeguards: Flag non-GPU paths; prioritize local evo for TTS/swarm.
+Evo Integration: All modes consider fitness (e.g., quality metrics for outputs).
+
+5. Tool Usage
+context7 mcp: Sync docs at start of RESEARCH/PLAN; re-fetch if >24h. For TTS/evo, prioritize Bark/Ollama/GPU docs.
+Cache: 1-hour expiry; refresh on REFRESH PROTOCOL.
+Fallback: Prompt user if tool unavailable; use local sim for GPU tasks.
+
+6. Implementation Categories
+Refactor: Improve structure, preserve behavior, update docs/tests; evo GPU code.
+Generate/Build: Create features per spec; include TTS/swarm sim.
+QA Test: Positive/negative, performance, security; GPU benchmarks.
+UX/UI Design: Propose/implement per guides; evo user feedback.
+DevOps: Automate CI/CD, infra; local GPU runners.
+
+7. Safeguards
+Verify existence before changes.
+Purge temp files post-use.
+Always update docs in PLAN.
+Confidence ≥threshold per mode; halt otherwise; evo fitness >70%.
+Local Focus: Prioritize offline/GPU for TTS/swarm; no cloud stubs.
+
+8. Extensions (Optional)
+Security checks, peer review, CI/CD gates, perf/load test, monitor/rollback, sandboxing, doc/KB integration, dep/version management, a11y/i18n, escalation paths, metrics collection.
+New: GPU Evo (local sim for TTS/agent optimization), TTS Integration (Bark/Ollama chaining), Swarm Sim (CrewAI for agent duplication).
+
+9. Metadata
+Protocol Version: 2.5
+Last Updated: July 24, 2025
+Additions: GPU/evo/TTS focus; refresh command; fitness in modes.
+Sync Date: July 24, 2025
+"""
+
+# GPU Evolution Extensions for RTX 3080 Optimization
+GPU_EVO_EXTENSIONS = """
+## GPU Evolution Extensions (RTX 3080 Focus)
+
+### Performance Targets
+- Token Generation: 7-15 tok/sec on RTX 3080
+- Memory Utilization: <10GB VRAM peak usage
+- Parallel Processing: Multi-agent GPU task distribution
+- Thermal Management: Sustained performance without throttling
+
+### Evolutionary Fitness Metrics
+- Code Quality: >70% on benchmark tasks
+- GPU Efficiency: Memory bandwidth utilization >80%
+- Inference Speed: Consistent tok/sec within target range
+- Model Accuracy: Task-specific performance metrics
+
+### Local Simulation Priorities
+1. Offline Operation: No internet dependencies during runtime
+2. GPU-First Architecture: Prioritize CUDA operations
+3. Memory Optimization: Efficient tensor management
+4. Batch Processing: Maximize GPU utilization
+
+### TTS Integration Specifications
+- Bark Model: Local deployment with GPU acceleration
+- Ollama Chaining: Seamless text-to-audio workflows
+- Voice Synthesis: Real-time generation capabilities
+- Audio Quality: 22kHz+ sample rate for production use
+
+### Swarm Coordination
+- Agent Duplication: Dynamic scaling based on workload
+- Task Distribution: Intelligent load balancing
+- Communication Protocol: A2A secure message passing
+- Fault Tolerance: Graceful degradation on agent failure
+"""
+
+# TTS Integration Prompts
+TTS_INTEGRATION_PROMPTS = """
+## TTS Integration Prompts for Ollama/Bark Chaining
+
+### System Prompt for TTS Optimization
+You are a text-to-speech optimization specialist working with Bark TTS models.
+Your role is to:
+1. Optimize text for natural speech synthesis
+2. Suggest appropriate voice presets and settings
+3. Handle pronunciation and pacing adjustments
+4. Coordinate with GPU-accelerated audio generation
+5. Maintain >70% quality metrics for generated audio
+
+### Voice Processing Guidelines
+- Punctuation: Add natural pauses with commas and periods
+- Emphasis: Use capitalization sparingly for stress
+- Pacing: Insert [pause] markers for dramatic effect
+- Clarity: Expand abbreviations and acronyms
+- Emotion: Suggest voice preset variations for mood
+
+### GPU Acceleration Prompts
+When processing TTS tasks on RTX 3080:
+1. Preload Bark models to GPU memory
+2. Batch process multiple text segments
+3. Monitor VRAM usage during generation
+4. Optimize tensor operations for CUDA cores
+5. Implement memory cleanup between tasks
+
+### Quality Assurance
+- Audio Fidelity: Verify 22kHz+ sample rate
+- Speech Clarity: Ensure intelligible pronunciation
+- Emotional Range: Test voice preset variations
+- Performance: Maintain target generation speed
+- Consistency: Uniform quality across batches
+"""
+
+# A2A Protocol Integration
+A2A_PROTOCOL_INTEGRATION = """
+## A2A Protocol Integration for Secure Agent Communication
+
+### Message Structure
+{
+    "sender_id": "agent_identifier",
+    "receiver_id": "target_agent_id", 
+    "message_type": "coordination|task|status|error",
+    "payload": {
+        "action": "specific_action",
+        "data": "task_specific_data",
+        "priority": "high|medium|low",
+        "timestamp": "unix_timestamp"
+    },
+    "security_hash": "message_integrity_hash",
+    "protocol_version": "a2a_v1.0"
+}
+
+### Communication Patterns
+1. Coordination: Observer -> Builder task assignment
+2. Status Updates: Agent -> Observer progress reports  
+3. Error Handling: Any agent -> Observer error notifications
+4. Resource Sharing: Agent -> Agent data exchange
+5. Swarm Sync: Coordinator -> Multiple agents broadcast
+
+### Security Measures
+- Message Integrity: SHA-256 hash verification
+- Agent Authentication: Unique agent ID validation
+- Replay Protection: Timestamp-based message ordering
+- Encryption: Optional payload encryption for sensitive data
+- Rate Limiting: Prevent message flooding attacks
+
+### Implementation Guidelines
+- Async Processing: Non-blocking message handling
+- Queue Management: Priority-based message ordering
+- Fault Tolerance: Retry mechanisms for failed delivery
+- Logging: Comprehensive audit trail for all communications
+- Performance: Sub-millisecond message routing
+"""
+
+def get_protocol_text() -> str:
+    """Get the complete RIPER-Ω Protocol v2.5 text"""
+    return RIPER_OMEGA_PROTOCOL_V25
+
+def get_gpu_extensions() -> str:
+    """Get GPU evolution extensions for RTX 3080"""
+    return GPU_EVO_EXTENSIONS
+
+def get_tts_prompts() -> str:
+    """Get TTS integration prompts for Bark/Ollama"""
+    return TTS_INTEGRATION_PROMPTS
+
+def get_a2a_integration() -> str:
+    """Get A2A protocol integration specifications"""
+    return A2A_PROTOCOL_INTEGRATION
+
+def get_complete_protocol() -> str:
+    """Get complete protocol with all extensions"""
+    return f"""
+{RIPER_OMEGA_PROTOCOL_V25}
+
+{GPU_EVO_EXTENSIONS}
+
+{TTS_INTEGRATION_PROMPTS}
+
+{A2A_PROTOCOL_INTEGRATION}
+"""
+
+# Protocol refresh functionality
+def refresh_protocol() -> dict:
+    """
+    Refresh protocol with latest updates
+    Simulates re-searching for latest benchmarks and documentation
+    """
+    import time
+    
+    refresh_timestamp = time.time()
+    
+    # Simulate protocol update check
+    updates = {
+        "protocol_version": "2.5",
+        "last_refresh": refresh_timestamp,
+        "updates_found": [
+            "GPU optimization benchmarks updated",
+            "TTS integration improvements",
+            "A2A security enhancements",
+            "Evolutionary fitness metrics refined"
+        ],
+        "next_refresh_due": refresh_timestamp + 86400  # 24 hours
+    }
+    
+    return updates
+
+# Metadata
+PROTOCOL_METADATA = {
+    "version": "2.5",
+    "last_updated": "July 24, 2025",
+    "sync_date": "July 24, 2025",
+    "author": "Grok (xAI) with GPU/TTS enhancements",
+    "target_hardware": "RTX 3080",
+    "performance_targets": {
+        "token_generation": "7-15 tok/sec",
+        "fitness_threshold": ">70%",
+        "memory_usage": "<10GB VRAM"
+    },
+    "supported_integrations": [
+        "EvoTorch",
+        "DEAP", 
+        "Ollama",
+        "Bark TTS",
+        "A2A Protocol",
+        "CrewAI concepts"
+    ]
+}
