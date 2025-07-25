@@ -202,21 +202,26 @@ A2A_PROTOCOL_INTEGRATION = """
 - Performance: Sub-millisecond message routing
 """
 
+
 def get_protocol_text() -> str:
     """Get the complete RIPER-Ω Protocol v2.5 text"""
     return RIPER_OMEGA_PROTOCOL_V25
+
 
 def get_gpu_extensions() -> str:
     """Get GPU evolution extensions for RTX 3080"""
     return GPU_EVO_EXTENSIONS
 
+
 def get_tts_prompts() -> str:
     """Get TTS integration prompts for Bark/Ollama"""
     return TTS_INTEGRATION_PROMPTS
 
+
 def get_a2a_integration() -> str:
     """Get A2A protocol integration specifications"""
     return A2A_PROTOCOL_INTEGRATION
+
 
 def get_complete_protocol() -> str:
     """Get complete protocol with all extensions"""
@@ -230,6 +235,7 @@ def get_complete_protocol() -> str:
 {A2A_PROTOCOL_INTEGRATION}
 """
 
+
 # Protocol refresh functionality
 def refresh_protocol() -> dict:
     """
@@ -237,9 +243,9 @@ def refresh_protocol() -> dict:
     Simulates re-searching for latest benchmarks and documentation
     """
     import time
-    
+
     refresh_timestamp = time.time()
-    
+
     # Simulate protocol update check
     updates = {
         "protocol_version": "2.5",
@@ -248,12 +254,13 @@ def refresh_protocol() -> dict:
             "GPU optimization benchmarks updated",
             "TTS integration improvements",
             "A2A security enhancements",
-            "Evolutionary fitness metrics refined"
+            "Evolutionary fitness metrics refined",
         ],
-        "next_refresh_due": refresh_timestamp + 86400  # 24 hours
+        "next_refresh_due": refresh_timestamp + 86400,  # 24 hours
     }
-    
+
     return updates
+
 
 # Metadata
 PROTOCOL_METADATA = {
@@ -265,14 +272,14 @@ PROTOCOL_METADATA = {
     "performance_targets": {
         "token_generation": "7-15 tok/sec",
         "fitness_threshold": ">70%",
-        "memory_usage": "<10GB VRAM"
+        "memory_usage": "<10GB VRAM",
     },
     "supported_integrations": [
         "EvoTorch",
-        "DEAP", 
+        "DEAP",
         "Ollama",
         "Bark TTS",
         "A2A Protocol",
-        "CrewAI concepts"
-    ]
+        "CrewAI concepts",
+    ],
 }
