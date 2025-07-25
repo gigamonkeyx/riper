@@ -12,13 +12,51 @@ This project implements a sophisticated multi-agent system that combines:
 - **Ollama Specialists**: Local GPU tasks optimized for RTX 3080 (7-15 tok/sec performance)
 - **DGM-Optimized EA/GA**: Neural networks using EvoTorch and DEAP for evolutionary algorithms
 
-### 🆕 RIPER-Ω v2.6 Enhancements
+### 🆕 RIPER-Ω v2.6.1 Mandatory Perfection
 
-- **Fitness-Tied Bias Mitigation**: False positives in summaries lower fitness, triggering evolutionary mutations
-- **RL-Inspired Rewards**: Enhanced self-correction using fitness-as-reward paradigm
-- **Bias Detection System**: Automatic detection of false "PASSED" claims when failures occurred
-- **Enhanced Accuracy Thresholds**: >80% accuracy requirement in REVIEW mode
-- **Self-Audit Capabilities**: Real-time bias scoring and correction mechanisms
+- **Mandatory Perfection Enforcement**: Only 100% success allowed - automatic halt for partial success
+- **Fitness-as-Trump Hierarchy**: Fitness score is the sole arbiter - 1.0 required for completion
+- **Observer Veto System**: A2A-based rejection of <1.0 fitness outputs
+- **Auto-Fix Enforcement**: Suggestions become requirements - no proceeding without fixes
+- **Rationalization Prevention**: No escape from mandatory halt through dismissive language
+
+#### Bias Detection Examples
+
+**False Positive Detection:**
+```
+Output: "✅ STEP 1 COMPLETE: Test - PASSED"
+Log: "ERROR: Process failed\nTimeout occurred"
+Result: Fitness 0.400 (<0.70) → HALT triggered
+```
+
+**Penalty System:**
+- Major bias (success claim + failure): -0.6 fitness penalty
+- Contradictions (success + error): -0.4 penalty
+- Dismissal bias (calling failures "minor"): -0.4 penalty
+- Satisficing behavior ("87.5% is good enough"): -0.4 penalty
+- Honesty bonus (accurate failure reporting): +0.1 reward
+
+**RL Enforcement Examples:**
+```
+Dismissive: "87.5% success - minor issue" → Fitness 0.600 → HALT
+Fixed: "100% success - fixed string mismatch" → Fitness 1.000 → CONTINUE
+Auto-fix: "Fix the actual issue instead of dismissing as minor"
+```
+
+**v2.6.1 Mandatory Perfection:**
+```
+Partial: "87.5% success (minor issue)" → Fitness 0.000 → MANDATORY HALT
+Perfect: "100% success - all tests passed" → Fitness 1.000 → APPROVED
+Observer: Vetos any output with fitness <1.0
+Auto-Fix: "CRITICAL: Apply all fixes and re-run until 100% success achieved"
+```
+
+**Enforcement Hierarchy:**
+- **Fitness 1.0**: Only acceptable score - anything less triggers halt
+- **Mandatory Halt**: No proceeding without 100% success
+- **Observer Veto**: A2A system rejects partial success claims
+- **Auto-Fix Required**: Suggestions become mandatory actions
+- **No Rationalization**: Dismissive language heavily penalized
 
 ## Architecture
 

@@ -174,7 +174,7 @@ class Observer:
         """Coordinate evolutionary loop with v2.6 fitness rewards and bias detection"""
         logger.info("Starting evolutionary coordination loop (RIPER-Ω v2.6)")
 
-        # A2A coordination message with v2.6 fitness rewards
+        # A2A coordination message with v2.6.1 mandatory perfection
         coordination_msg = {
             "action": "start_evolution",
             "fitness_threshold": self.fitness_threshold,
@@ -184,6 +184,14 @@ class Observer:
                 "bias_detection": True,
                 "fitness_rewards": True,
                 "accuracy_threshold": 0.80
+            },
+            "v261_features": {
+                "mandatory_perfection": True,
+                "fitness_veto": True,
+                "halt_on_partial": True,
+                "perfection_threshold": 1.0,
+                "mid_execution_veto": True,
+                "completion_fraud_detection": True
             }
         }
 
@@ -219,6 +227,77 @@ class Observer:
             "final_fitness": metrics.get_best_fitness(),
             "generations": metrics.generation_count,
             "success": metrics.get_best_fitness() >= self.fitness_threshold,
+        }
+
+    def veto_builder_output(self, builder_output: str, log_text: str = "") -> Dict[str, Any]:
+        """
+        v2.6.1: Veto builder output if fitness <1.0 (mandatory perfection)
+        """
+        from protocol import check_builder_bias
+
+        bias_analysis = check_builder_bias(builder_output, log_text)
+
+        if bias_analysis['mandatory_halt']:
+            # Send A2A veto message
+            veto_msg = {
+                "action": "output_vetoed",
+                "reason": "mandatory_perfection_violation",
+                "fitness_score": bias_analysis['fitness_score'],
+                "required_fixes": bias_analysis['auto_fixes'],
+                "halt_enforced": True
+            }
+
+            logger.warning(f"OBSERVER VETO: Builder output rejected (fitness {bias_analysis['fitness_score']:.3f} < 1.0)")
+
+            return {
+                "vetoed": True,
+                "reason": "Fitness below perfection threshold (1.0)",
+                "fitness_score": bias_analysis['fitness_score'],
+                "required_actions": bias_analysis['auto_fixes'],
+                "veto_message": veto_msg
+            }
+
+        return {
+            "vetoed": False,
+            "fitness_score": bias_analysis['fitness_score'],
+            "approved": True
+        }
+
+    def veto_mid_execution_claim(self, step_output: str, step_log: str = "") -> Dict[str, Any]:
+        """
+        v2.6.1.1: Veto mid-execution completion claims with <100% success
+        """
+        import re
+        from protocol import check_builder_bias
+
+        # Check for completion claims in mid-execution
+        if re.search(r'(complete|execution.*complete)', step_output.lower()):
+            bias_analysis = check_builder_bias(step_output, step_log)
+
+            if bias_analysis['fitness_score'] == 0.0:
+                # Critical veto for completion fraud
+                veto_msg = {
+                    "action": "mid_execution_veto",
+                    "reason": "completion_fraud_detected",
+                    "fitness_score": 0.0,
+                    "step_output": step_output[:100] + "...",
+                    "critical_halt": True
+                }
+
+                logger.error(f"CRITICAL VETO: Mid-execution completion fraud detected (fitness 0.0)")
+
+                return {
+                    "vetoed": True,
+                    "critical": True,
+                    "reason": "Claiming COMPLETE with partial success",
+                    "fitness_score": 0.0,
+                    "required_actions": bias_analysis['auto_fixes'],
+                    "veto_message": veto_msg
+                }
+
+        return {
+            "vetoed": False,
+            "approved": True
         }
 
 

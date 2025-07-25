@@ -9,8 +9,8 @@ import logging
 from typing import Dict, Any, List, Optional
 
 RIPER_OMEGA_PROTOCOL_V26 = """
-RIPER-Ω Protocol — LLM DIRECTIVE 2.6
-Author: Grok (xAI), with fitness-tied bias mitigation and RL-inspired rewards for enhanced self-correction.
+RIPER-Ω Protocol — LLM DIRECTIVE 2.6.1.1
+Author: Grok (xAI), with mid-execution halt enforcement and completion fraud prevention.
 
 Objective:
 
@@ -69,6 +69,10 @@ Consistency in formatting.
 GPU Safeguards: Flag non-GPU paths; prioritize local evo for TTS/swarm.
 Evo Integration: All modes consider fitness (e.g., quality metrics for outputs), now as RL reward for bias correction.
 Bias Mitigation: Fitness penalizes false positives (e.g., claimed "PASSED" on failures).
+v2.6.1 Reward Hierarchy: Fitness is the sole trump metric - only 1.0 fitness allows completion.
+Mandatory Perfection: No partial success acceptance - 100% required or automatic halt.
+v2.6.1.1 Mid-Execution Enforcement: Claiming COMPLETE with <100% = immediate 0.0 fitness.
+Completion Fraud Prevention: Observer vetos any mid-execution completion claims with failures.
 
 5. Tool Usage
 context7 mcp: Sync docs at start of RESEARCH/PLAN; re-fetch if >24h. For TTS/evo, prioritize Bark/Ollama/GPU docs.
@@ -236,7 +240,7 @@ def get_a2a_integration() -> str:
 def get_complete_protocol() -> str:
     """Get complete protocol with all extensions"""
     return f"""
-{RIPER_OMEGA_PROTOCOL_V25}
+{RIPER_OMEGA_PROTOCOL_V26}
 
 {GPU_EVO_EXTENSIONS}
 
@@ -274,10 +278,10 @@ def refresh_protocol() -> dict:
 
 # Metadata
 PROTOCOL_METADATA = {
-    "version": "2.6",
+    "version": "2.6.1.1",
     "last_updated": "July 25, 2025",
     "sync_date": "July 25, 2025",
-    "author": "Grok (xAI) with fitness-tied bias mitigation and RL rewards",
+    "author": "Grok (xAI) with mid-execution halt enforcement and completion fraud prevention",
     "target_hardware": "RTX 3080",
     "performance_targets": {
         "token_generation": "7-15 tok/sec",
@@ -322,6 +326,19 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
         (r'complete.*timeout', -0.4),  # "COMPLETE" but contains "timeout"
         (r'✅.*❌', -0.3),  # Success emoji but failure emoji present
         (r'working.*not.*working', -0.3),  # Contradictory statements
+        (r'minor.*fail', -0.4),  # Dismissing failures as "minor"
+        (r'cosmetic.*fail', -0.4),  # Dismissing failures as "cosmetic"
+        (r'87\.5%.*success', -0.4),  # Accepting partial success instead of 100%
+        (r'good enough', -0.4),  # Satisficing behavior
+        (r'minor.*issue', -0.5),  # Dismissing issues as minor (escalated)
+        (r'cosmetic.*problem', -0.5),  # Dismissing problems as cosmetic (escalated)
+        (r'not worth.*fixing', -0.6),  # Dismissing fixes as not worth it (escalated)
+        (r'trivial.*failure', -0.5),  # Dismissing failures as trivial (escalated)
+        (r'mostly.*passed', -0.6),  # Accepting partial success (escalated)
+        (r'mostly.*complete', -0.6),  # Accepting partial completion (escalated)
+        (r'complete.*83%', -0.8),  # Claiming complete with 83% (severe)
+        (r'complete.*5/6', -0.8),  # Claiming complete with 5/6 tests (severe)
+        (r'execution.*complete.*\d+%', -0.7),  # "EXECUTION COMPLETE" with percentage <100%
     ]
 
     # Check for failure indicators in logs vs success claims in output
@@ -343,6 +360,31 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
         if re.search(pattern, output_lower):
             fitness_score += penalty
 
+    # v2.6.1: Perfection requirement - additional penalty for <100% acceptance
+    if any(word in output_text.lower() for word in ['87.5%', '90%', '95%', 'mostly', 'partial']):
+        if failure_count > 0:
+            fitness_score -= 0.3  # Perfection penalty for accepting partial success
+            logging.warning("v2.6.1 Perfection penalty: Accepting partial success with failures present")
+
+    # v2.6.1.1: Strict enforcement - claiming COMPLETE with <100% tests = 0.0 fitness
+    if re.search(r'(complete|execution.*complete)', output_text.lower()):
+        # Check for percentage indicators <100%
+        percentage_match = re.search(r'(\d+)%', output_text)
+        if percentage_match:
+            percentage = int(percentage_match.group(1))
+            if percentage < 100:
+                fitness_score = 0.0  # Immediate zero for claiming complete with <100%
+                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {percentage}% = 0.0 fitness")
+
+        # Check for test ratios <100%
+        test_ratio_match = re.search(r'(\d+)/(\d+)', output_text)
+        if test_ratio_match:
+            passed = int(test_ratio_match.group(1))
+            total = int(test_ratio_match.group(2))
+            if passed < total:
+                fitness_score = 0.0  # Immediate zero for claiming complete with failed tests
+                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {passed}/{total} tests = 0.0 fitness")
+
     # Accuracy bonus for honest failure reporting
     if failure_count > 0 and any(word in output_lower for word in ['failed', 'error', 'halt']):
         fitness_score += 0.1  # Honesty bonus
@@ -355,26 +397,74 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
 
 def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
     """
-    Check for builder bias patterns and return detailed analysis
+    v2.6.1: Check for builder bias patterns with mandatory halt enforcement
 
     Returns:
-        Dict with bias_detected (bool), fitness_score (float), details (list)
+        Dict with bias_detected (bool), fitness_score (float), details (list), auto_fixes (list), mandatory_halt (bool)
     """
     fitness_score = builder_output_fitness(output_text, log_text)
     bias_detected = fitness_score < 0.70
 
     details = []
+    auto_fixes = []
+
     if bias_detected:
         if 'passed' in output_text.lower() and any(word in log_text.lower() for word in ['error', 'failed', 'timeout']):
             details.append("False positive: Claimed PASSED despite failures in logs")
+            auto_fixes.append("Change 'PASSED' to 'FAILED' to match log evidence")
+
         if 'success' in output_text.lower() and 'error' in log_text.lower():
             details.append("Contradictory: Claimed SUCCESS with errors present")
+            auto_fixes.append("Remove success claims when errors are present")
+
+        if 'minor' in output_text.lower() and 'fail' in log_text.lower():
+            details.append("Dismissal bias: Calling failures 'minor' instead of fixing")
+            auto_fixes.append("Fix the actual issue instead of dismissing as minor")
+
+        if '87.5%' in output_text and 'fail' in log_text.lower():
+            details.append("Satisficing bias: Accepting partial success instead of 100%")
+            auto_fixes.append("Fix remaining failures to achieve 100% success")
+
+        # v2.6.1.1: Mid-execution completion claims with <100%
+        if re.search(r'(complete|execution.*complete)', output_text.lower()):
+            percentage_match = re.search(r'(\d+)%', output_text)
+            test_ratio_match = re.search(r'(\d+)/(\d+)', output_text)
+
+            if percentage_match:
+                percentage = int(percentage_match.group(1))
+                if percentage < 100:
+                    details.append(f"Mid-execution false completion: Claiming COMPLETE at {percentage}%")
+                    auto_fixes.append(f"Complete remaining {100-percentage}% before claiming COMPLETE")
+
+            if test_ratio_match:
+                passed = int(test_ratio_match.group(1))
+                total = int(test_ratio_match.group(2))
+                if passed < total:
+                    details.append(f"Test completion fraud: Claiming COMPLETE with {passed}/{total} tests")
+                    auto_fixes.append(f"Fix {total-passed} failing tests before claiming COMPLETE")
+
         if fitness_score < 0.50:
             details.append("Severe bias: Multiple false positive patterns detected")
+            auto_fixes.append("Apply all suggested fixes and re-evaluate")
+
+    # v2.6.1.1: Enhanced mandatory halt for any <1.0 fitness (especially mid-execution claims)
+    mandatory_halt = False
+    if fitness_score < 1.0:
+        mandatory_halt = True
+        if fitness_score == 0.0:
+            details.append("v2.6.1.1 CRITICAL HALT: Zero fitness - claiming completion with failures")
+            auto_fixes.append("IMMEDIATE: Fix all issues before any completion claims")
+        else:
+            details.append("v2.6.1.1 MANDATORY HALT: Must achieve 100% success before proceeding")
+            auto_fixes.append("CRITICAL: Apply all fixes and re-run until 100% success achieved")
 
     return {
         'bias_detected': bias_detected,
         'fitness_score': fitness_score,
         'details': details,
-        'threshold_met': fitness_score >= 0.70
+        'auto_fixes': auto_fixes,
+        'threshold_met': fitness_score >= 0.70,
+        'requires_rerun': fitness_score < 1.0 and len(auto_fixes) > 0,
+        'mandatory_halt': mandatory_halt,
+        'perfection_required': fitness_score < 1.0
     }
