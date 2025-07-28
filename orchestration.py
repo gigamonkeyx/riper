@@ -110,46 +110,61 @@ class CamelModularAgent:
         self.stability_score = 1.0
         self.task_history: List[Dict[str, Any]] = []
 
-        # Initialize real Camel-AI ChatAgent
+        # Initialize Ollama-only Camel-AI integration (bypass GPT)
         try:
-            model = ModelFactory.create(
-                model_type=ModelType.GPT_3_5_TURBO,
-                model_config_dict=ChatGPTConfig(temperature=0.7).__dict__
-            )
-            self.camel_agent = ChatAgent(
-                system_message=f"You are a {specialization} specialist agent in a multi-agent system.",
-                model=model
-            )
-            logger.info(f"Real Camel-AI agent {agent_id} initialized with {specialization} specialization")
+            import ollama
+            import json  # Ensure json is available
+            # Use Ollama directly instead of Camel-AI's GPT dependency
+            self.ollama_model = "qwen2.5-coder:7b"
+            self.camel_agent = None  # Skip GPT-dependent ChatAgent
+            self.ollama_available = True
+            # Always initialize SwarmCoordinator as fallback
+            self.swarm_coordinator = SwarmCoordinator()
+            logger.info(f"Ollama-only Camel integration {agent_id} initialized with {specialization} specialization using {self.ollama_model}")
         except Exception as e:
-            # Fallback to SwarmCoordinator if Camel-AI fails
-            logger.warning(f"Camel-AI initialization failed: {e}, using SwarmCoordinator fallback")
+            # Fallback to SwarmCoordinator if Ollama fails
+            logger.warning(f"Ollama initialization failed: {e}, using SwarmCoordinator fallback")
             self.swarm_coordinator = SwarmCoordinator()
             self.camel_agent = None
+            self.ollama_available = False
 
     def process_stable_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process task with real Camel-AI agent or SwarmCoordinator fallback"""
         start_time = time.time()
 
-        if self.camel_agent:
-            # Use real Camel-AI agent
+        if self.ollama_available:
+            # Use Ollama-only processing (no GPT dependency)
             try:
+                import ollama
+                import json
                 task_prompt = f"Process {self.specialization} task: {json.dumps(task_data)}"
-                response = self.camel_agent.step(task_prompt)
 
+                response = ollama.chat(
+                    model=self.ollama_model,
+                    messages=[{
+                        'role': 'system',
+                        'content': f'You are a {self.specialization} specialist agent in a multi-agent system.'
+                    }, {
+                        'role': 'user',
+                        'content': task_prompt
+                    }]
+                )
+
+                ollama_response = response['message']['content']
                 # Parse response for success metrics
-                success_rate = 0.9 if "success" in response.msg.content.lower() else 0.7
+                success_rate = 0.9 if "success" in ollama_response.lower() else 0.7
 
                 result = {
                     "success": True,
-                    "data": {"camel_response": response.msg.content, "success_rate": success_rate},
+                    "data": {"ollama_response": ollama_response, "success_rate": success_rate},
                     "stability_score": self.stability_score,
                     "camel_enhanced": True,
+                    "ollama_model": self.ollama_model,
                     "execution_time": time.time() - start_time
                 }
 
             except Exception as e:
-                logger.warning(f"Camel-AI processing failed: {e}, using fallback")
+                logger.warning(f"Ollama processing failed: {e}, using SwarmCoordinator fallback")
                 # Fallback to SwarmCoordinator
                 swarm_result = self.swarm_coordinator.process_task(
                     task_data, task_type=self.specialization, parallel_agents=2
@@ -736,23 +751,54 @@ Provide analysis and recommended response."""
         return {"status": "coordination_processed", "analysis": coordination_analysis}
 
     def _handle_evolution_update(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle evolutionary update messages"""
+        """Handle evolutionary update messages with complex A2A coordination"""
+        import ollama
         generation = payload.get("generation", 0)
         current_fitness = payload.get("current_fitness", 0.0)
 
-        logger.info(
-            f"Evolution update - Generation: {generation}, Fitness: {current_fitness:.3f}"
-        )
+        logger.info(f"Evolution update - Generation: {generation}, Fitness: {current_fitness:.3f}")
 
-        # Use Ollama specialists for fitness evaluation
-        specialist_feedback = self.fitness_scorer.evaluate_generation(
-            generation, current_fitness
-        )
+        # Use deepseek-r1:8b for complex stateful planning
+        try:
+            planning_prompt = f"""Complex A2A coordination analysis:
+Generation: {generation}
+Current Fitness: {current_fitness}
+Target: >1.0
 
-        return {
-            "status": "evolution_update_processed",
-            "specialist_feedback": specialist_feedback,
-        }
+Generate stateful coordination plan:
+1. Next generation strategy
+2. Resource allocation
+3. Agent coordination priorities
+4. Risk mitigation steps"""
+
+            response = ollama.chat(
+                model='deepseek-r1:8b',
+                messages=[{'role': 'user', 'content': planning_prompt}]
+            )
+
+            coordination_plan = response['message']['content']
+            logger.info(f"Complex A2A coordination plan: {coordination_plan[:100]}...")
+
+            # Use Ollama specialists for fitness evaluation
+            specialist_feedback = self.fitness_scorer.evaluate_generation(generation, current_fitness)
+
+            return {
+                "status": "evolution_update_processed",
+                "specialist_feedback": specialist_feedback,
+                "coordination_plan": coordination_plan,
+                "complex_a2a": True,
+                "planning_model": "deepseek-r1:8b"
+            }
+
+        except Exception as e:
+            logger.warning(f"Complex A2A coordination failed: {e}, using basic processing")
+            specialist_feedback = self.fitness_scorer.evaluate_generation(generation, current_fitness)
+
+            return {
+                "status": "evolution_update_processed",
+                "specialist_feedback": specialist_feedback,
+                "complex_a2a": False
+            }
 
     def review_output(self, output_text: str, execution_log: str = "") -> Dict[str, Any]:
         """

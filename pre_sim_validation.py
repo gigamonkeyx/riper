@@ -131,17 +131,74 @@ class PreSimValidator:
         return audit
 
     def validate_pre_sim(self) -> Dict[str, Any]:
-        """Run full pre-sim validation"""
-        benchmarks = self.mock_code_execution()
-        sim_data = run_economy_sim()
-        narrative = self.integrate_tts_narrative(sim_data)
+        """Run full pre-sim validation with complete 3-year cycle analysis"""
+        import ollama
+
+        # Run multiple 3-year cycles for comprehensive validation
+        cycle_results = []
+        total_fitness = 0.0
+
+        for cycle in range(3):  # 3 complete cycles
+            logger.info(f"Running validation cycle {cycle + 1}/3")
+            benchmarks = self.mock_code_execution(cycles=3)
+            sim_data = run_economy_sim()
+
+            # Use Ollama for cycle analysis
+            try:
+                cycle_prompt = f"""Analyze 3-year simulation cycle {cycle + 1}:
+Benchmarks: {benchmarks}
+Simulation: {sim_data}
+Evaluate: Success rate, sustainability, compliance"""
+
+                response = ollama.chat(
+                    model='qwen2.5-coder:7b',
+                    messages=[{'role': 'user', 'content': cycle_prompt}]
+                )
+
+                cycle_analysis = response['message']['content']
+                cycle_fitness = benchmarks.get('cobra_audit', {}).get('fitness', 0.7)
+                total_fitness += cycle_fitness
+
+                cycle_results.append({
+                    "cycle": cycle + 1,
+                    "benchmarks": benchmarks,
+                    "sim_data": sim_data,
+                    "analysis": cycle_analysis[:200] + "...",
+                    "fitness": cycle_fitness
+                })
+
+            except Exception as e:
+                logger.warning(f"Cycle {cycle + 1} analysis failed: {e}")
+                cycle_fitness = benchmarks.get('cobra_audit', {}).get('fitness', 0.7)
+                total_fitness += cycle_fitness
+
+                cycle_results.append({
+                    "cycle": cycle + 1,
+                    "benchmarks": benchmarks,
+                    "sim_data": sim_data,
+                    "analysis": "Analysis unavailable",
+                    "fitness": cycle_fitness
+                })
+
+        # Calculate average fitness across all cycles
+        average_fitness = total_fitness / 3
+
+        # Final comprehensive audit
+        narrative = self.integrate_tts_narrative(cycle_results[-1]["sim_data"])
         audit = self.observer_audit()
-        
+
+        # Enhanced compliance check
+        compliance = (average_fitness >= 1.0) and (audit["fitness"] >= 1.0)
+
+        logger.info(f"Full validation complete: Average fitness {average_fitness:.3f}, Compliance: {compliance}")
+
         return {
-            "benchmarks": benchmarks,
+            "cycle_results": cycle_results,
+            "average_fitness": average_fitness,
             "narrative": narrative,
             "audit": audit,
-            "compliance": audit["fitness"] >= 1.0
+            "compliance": compliance,
+            "full_validation": True
         }
 
 # Utility function
