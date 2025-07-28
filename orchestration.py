@@ -36,15 +36,22 @@ logger = logging.getLogger(__name__)
 
 class AsyncSubAgentCoordinator:
     """
-    Async coordination for YAML sub-agents with parallel Ollama processing
-    Supports OLLAMA_NUM_PARALLEL=4 for concurrent task delegation
+    Dynamic async coordination for YAML sub-agents with auto-scaling
+    Supports OLLAMA_NUM_PARALLEL=4 with adaptive load balancing
     """
 
     def __init__(self, max_concurrent: int = 4):
         self.max_concurrent = max_concurrent
         self.yaml_parser = YAMLSubAgentParser()
         self.semaphore = asyncio.Semaphore(max_concurrent)
-        logger.info(f"Async sub-agent coordinator initialized with {max_concurrent} concurrent tasks")
+        self.task_queue = []
+        self.active_tasks = 0
+        self.scaling_enabled = True
+
+        # Set OLLAMA_NUM_PARALLEL environment variable
+        os.environ['OLLAMA_NUM_PARALLEL'] = str(max_concurrent)
+
+        logger.info(f"Dynamic async sub-agent coordinator initialized with {max_concurrent} concurrent tasks")
 
     async def delegate_task_async(self, agent_name: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Async task delegation to sub-agent"""
@@ -90,9 +97,43 @@ class AsyncSubAgentCoordinator:
                 processed_results.append(result)
 
         successful_tasks = sum(1 for r in processed_results if r.get('success', False))
+
+        # Dynamic scaling analysis
+        avg_execution_time = sum(r.get('execution_time', 0) for r in processed_results) / len(processed_results)
+        scaling_recommendation = self._analyze_scaling_needs(len(tasks), successful_tasks, avg_execution_time)
+
         logger.info(f"Parallel tasks: {successful_tasks}/{len(tasks)} concurrent. Timeouts: Handled")
+        logger.info(f"Scaling: {'Dynamic' if self.scaling_enabled else 'Static'}. Tasks: {successful_tasks} balanced")
 
         return processed_results
+
+    def _analyze_scaling_needs(self, total_tasks: int, successful_tasks: int, avg_time: float) -> Dict[str, Any]:
+        """Analyze and recommend scaling adjustments"""
+        success_rate = successful_tasks / total_tasks if total_tasks > 0 else 0
+
+        # Scaling recommendations based on performance
+        if success_rate < 0.8 and avg_time > 30:
+            recommendation = "scale_down"
+            new_concurrent = max(2, self.max_concurrent - 1)
+        elif success_rate > 0.95 and avg_time < 15:
+            recommendation = "scale_up"
+            new_concurrent = min(8, self.max_concurrent + 1)
+        else:
+            recommendation = "maintain"
+            new_concurrent = self.max_concurrent
+
+        if self.scaling_enabled and new_concurrent != self.max_concurrent:
+            self.max_concurrent = new_concurrent
+            self.semaphore = asyncio.Semaphore(new_concurrent)
+            os.environ['OLLAMA_NUM_PARALLEL'] = str(new_concurrent)
+            logger.info(f"Auto-scaling: Adjusted to {new_concurrent} concurrent tasks")
+
+        return {
+            "recommendation": recommendation,
+            "new_concurrent": new_concurrent,
+            "success_rate": success_rate,
+            "avg_execution_time": avg_time
+        }
 
 
 def preload_ollama_model(
