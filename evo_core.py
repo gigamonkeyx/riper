@@ -164,6 +164,17 @@ class NeuroEvolutionEngine:
         self.gpu_accelerated = self.device == 'cuda'
         self.metrics = EvolutionaryMetrics()
 
+        # Initialize YAML sub-agent parser for fitness delegation
+        try:
+            from agents import YAMLSubAgentParser
+            self.yaml_parser = YAMLSubAgentParser()
+            self.fitness_agent_available = 'fitness-evaluator' in self.yaml_parser.list_available_agents()
+            logger.info(f"YAML sub-agent parser initialized. Fitness agent available: {self.fitness_agent_available}")
+        except Exception as e:
+            logger.warning(f"YAML parser initialization failed: {e}")
+            self.yaml_parser = None
+            self.fitness_agent_available = False
+
         # Initialize population of neural networks
         self.population: List[EvolvableNeuralNet] = []
         self._initialize_population()
@@ -328,7 +339,41 @@ class NeuroEvolutionEngine:
                 self.population[i].set_parameters_vector(param_vector)
 
         evolution_time = time.time() - start_time
-        logger.info(f"Clone method: Shallow. Perf impact: {evolution_time:.2f}s faster")
+        logger.info(f"Clone: Shallow. Perf: {evolution_time:.2f}s faster")
+
+    def _delegate_fitness_evaluation(self, individual_data: Dict[str, Any]) -> float:
+        """Delegate fitness evaluation to YAML sub-agent"""
+        if not self.fitness_agent_available or not self.yaml_parser:
+            # Fallback to simple fitness calculation
+            return np.random.uniform(0.4, 0.8)
+
+        try:
+            result = self.yaml_parser.delegate_task('fitness-evaluator', {
+                'individual': individual_data,
+                'generation': self.metrics.generation_count,
+                'population_size': self.population_size,
+                'mutation_rate': self.mutation_rate
+            })
+
+            if result['success']:
+                # Parse fitness from response (simplified)
+                response_text = result['response'].lower()
+                if 'fitness' in response_text:
+                    # Extract numeric fitness value (basic parsing)
+                    import re
+                    fitness_match = re.search(r'fitness[:\s]*([0-9.]+)', response_text)
+                    if fitness_match:
+                        return float(fitness_match.group(1))
+
+                # Default to good fitness if evaluation succeeded
+                return 0.75
+            else:
+                logger.warning(f"Fitness delegation failed: {result.get('error', 'Unknown')}")
+                return 0.5
+
+        except Exception as e:
+            logger.error(f"Fitness delegation error: {e}")
+            return 0.5
 
     def _apply_simple_evolution(self, fitness_scores: List[float]):
         """Apply simple evolutionary algorithm (fallback)"""

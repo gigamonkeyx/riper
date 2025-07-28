@@ -1,0 +1,38 @@
+# Grant Modeler Sub-Agent Configuration
+name: "grant-modeler"
+description: "USDA grant calculations and optimization for Tonasket underserved economy"
+task: "USDA grant calcs"
+model: "qwen2.5-coder:7b"
+specialization: "grant_optimization"
+
+# Task-specific parameters
+parameters:
+  grant_types:
+    - "USDA 2501"
+    - "We Feed WA"
+    - "TEFAP"
+    - "CSFP"
+  calculation_focus:
+    - "utilization_rates"
+    - "equity_scoring"
+    - "rural_eligibility"
+  timeout: 300
+  max_retries: 3
+
+# Ollama-specific settings
+ollama_config:
+  temperature: 0.7
+  max_tokens: 4096
+  context_window: 16384
+
+# Performance targets
+targets:
+  fitness_threshold: 0.8
+  processing_time_max: 60
+  accuracy_min: 0.9
+
+# Integration points
+integrates_with:
+  - "economy_rewards.py"
+  - "cobra_audit"
+  - "pre_sim_validation.py"

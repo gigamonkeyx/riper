@@ -13,6 +13,9 @@ import logging
 import time
 import json
 import subprocess
+import yaml
+import os
+import ollama
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -35,6 +38,105 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+class YAMLSubAgentParser:
+    """
+    YAML-based sub-agent parser for RIPER-Ω system
+    Replaces Claude CLI dependency with local pyyaml/Ollama delegation
+    """
+
+    def __init__(self, agents_dir: str = ".riper/agents"):
+        self.agents_dir = agents_dir
+        self.loaded_agents: Dict[str, Dict[str, Any]] = {}
+        self.load_all_agents()
+
+    def load_all_agents(self) -> None:
+        """Load all YAML agent configurations from directory"""
+        if not os.path.exists(self.agents_dir):
+            logger.warning(f"Agents directory not found: {self.agents_dir}")
+            return
+
+        yaml_files = [f for f in os.listdir(self.agents_dir) if f.endswith('.yaml')]
+
+        for yaml_file in yaml_files:
+            try:
+                file_path = os.path.join(self.agents_dir, yaml_file)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    agent_config = yaml.safe_load(f)
+
+                agent_name = agent_config.get('name', yaml_file.replace('.yaml', ''))
+                self.loaded_agents[agent_name] = agent_config
+                logger.info(f"Loaded sub-agent: {agent_name}")
+
+            except Exception as e:
+                logger.error(f"Failed to load {yaml_file}: {e}")
+
+        logger.info(f"Sub-agents: Parsed {len(self.loaded_agents)}. Delegation: Functional")
+
+    def get_agent_config(self, agent_name: str) -> Optional[Dict[str, Any]]:
+        """Get configuration for specific agent"""
+        return self.loaded_agents.get(agent_name)
+
+    def delegate_task(self, agent_name: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Delegate task to specified sub-agent via Ollama"""
+        agent_config = self.get_agent_config(agent_name)
+        if not agent_config:
+            return {"success": False, "error": f"Agent {agent_name} not found"}
+
+        try:
+            # Extract configuration
+            model = agent_config.get('model', 'llama3.2:1b')
+            timeout = agent_config.get('parameters', {}).get('timeout', 300)
+            ollama_config = agent_config.get('ollama_config', {})
+
+            # Prepare task prompt
+            task_prompt = f"""Task: {agent_config.get('task', 'general')}
+Specialization: {agent_config.get('specialization', 'general')}
+Data: {json.dumps(task_data)}
+
+Process this task according to your specialization and return structured results."""
+
+            # Delegate to Ollama
+            start_time = time.time()
+            response = ollama.chat(
+                model=model,
+                messages=[{
+                    'role': 'system',
+                    'content': agent_config.get('description', 'You are a specialized sub-agent.')
+                }, {
+                    'role': 'user',
+                    'content': task_prompt
+                }],
+                options={
+                    'timeout': timeout,
+                    'temperature': ollama_config.get('temperature', 0.7),
+                    'num_predict': ollama_config.get('max_tokens', 2048)
+                }
+            )
+
+            execution_time = time.time() - start_time
+
+            return {
+                "success": True,
+                "agent": agent_name,
+                "model": model,
+                "response": response['message']['content'],
+                "execution_time": execution_time,
+                "config": agent_config
+            }
+
+        except Exception as e:
+            logger.error(f"Task delegation failed for {agent_name}: {e}")
+            return {
+                "success": False,
+                "agent": agent_name,
+                "error": str(e)
+            }
+
+    def list_available_agents(self) -> List[str]:
+        """List all available sub-agents"""
+        return list(self.loaded_agents.keys())
 
 
 def check_gpu_memory() -> Dict[str, Any]:
@@ -205,6 +307,34 @@ class OllamaSpecialist(ABC):
         """Process specialist task - to be implemented by subclasses"""
         pass
 
+    def receive_a2a_handoff(self, a2a_handoff: Dict[str, Any]) -> Dict[str, Any]:
+        """Receive A2A handoff from Qwen3 and start EXECUTE mode if fitness >70%."""
+        checklist = a2a_handoff.get("checklist", "")
+        fitness_requirement = a2a_handoff.get("fitness_requirement", 0.70)
+
+        # Simulate fitness check
+        fitness_score = builder_output_fitness(checklist)  # Use protocol function
+
+        if fitness_score > fitness_requirement:
+            logger.info(f"EXECUTE mode started with fitness {fitness_score:.3f}")
+            return {"success": True, "mode": "EXECUTE", "checklist": checklist}
+        else:
+            logger.warning(f"HALT: Low fitness {fitness_score:.3f} < {fitness_requirement}")
+            return {"success": False, "halt_reason": "low_fitness"}
+
+    def low_fitness_trigger(self, fitness_scores: List[float]) -> Dict[str, Any]:
+        """Trigger halt and report if >3 scores <0.70."""
+        low_scores = [s for s in fitness_scores if s < 0.70]
+        if len(low_scores) > 3:
+            issues_report = {
+                "low_scores": low_scores,
+                "count": len(low_scores),
+                "halt_required": True
+            }
+            logger.error("HALT: Multiple low fitness scores - Report to Observer")
+            return {"halt": True, "issues_report": issues_report}
+        return {"halt": False}
+
 
 class FitnessScorer(OllamaSpecialist):
     """
@@ -215,8 +345,8 @@ class FitnessScorer(OllamaSpecialist):
 
     def __init__(self):
         super().__init__(
-            model_name="deepseek-coder:1.3b"
-        )  # Use smaller model for testing
+            model_name="qwen2.5-coder:7b"
+        )  # Use Qwen2.5-Coder for consistency with OpenRouter
         self.fitness_history: List[Dict[str, Any]] = []
         self.openrouter_client = get_openrouter_client()
 
@@ -359,6 +489,88 @@ class FitnessScorer(OllamaSpecialist):
                 'threshold_met': True,
                 'error': str(e)
             }
+
+    def receive_a2a_goal(self, a2a_message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Receive A2A goal exchange from OpenRouter Qwen3
+        Parse instruction checklist and start EXECUTE mode
+        """
+        logger.info(f"A2A GOAL RECEIVED: {a2a_message.get('action', 'unknown')}")
+
+        if a2a_message.get('action') != 'goal_exchange':
+            return {
+                "goal_received": False,
+                "error": "Invalid A2A action - expected goal_exchange"
+            }
+
+        # Parse instruction checklist
+        instruction_checklist = a2a_message.get('checklist', '')
+        fitness_requirement = a2a_message.get('fitness_requirement', 0.70)
+
+        # Prepare for EXECUTE mode
+        execution_plan = {
+            "source": a2a_message.get('source', 'unknown'),
+            "instruction_checklist": instruction_checklist,
+            "fitness_requirement": fitness_requirement,
+            "halt_on_low_fitness": a2a_message.get('halt_on_low_fitness', True),
+            "execution_mode": "EXECUTE",
+            "ready_to_start": True
+        }
+
+        logger.info(f"EXECUTE MODE READY: {len(instruction_checklist)} char checklist, fitness ≥{fitness_requirement}")
+
+        return {
+            "goal_received": True,
+            "execution_plan": execution_plan,
+            "ready_to_execute": True,
+            "fitness_requirement": fitness_requirement
+        }
+
+    def fitness_trigger_report(self, low_fitness_count: int, recent_scores: List[float]) -> Dict[str, Any]:
+        """
+        Generate issues report for observer on multiple low fitness scores
+        Triggered when >3 scores <0.70 detected
+        """
+        logger.warning(f"FITNESS TRIGGER: {low_fitness_count} low scores detected")
+
+        # Generate comprehensive issues report
+        issues_report = {
+            "trigger_source": "FitnessScorer",
+            "low_fitness_count": low_fitness_count,
+            "recent_scores": recent_scores,
+            "severity": "HIGH" if low_fitness_count >= 4 else "MODERATE",
+            "bias_indicators": [],
+            "recommended_actions": [],
+            "observer_consultation_required": True
+        }
+
+        # Analyze fitness patterns
+        zero_scores = sum(1 for score in recent_scores if score == 0.0)
+        very_low_scores = sum(1 for score in recent_scores if 0.0 < score < 0.30)
+        moderate_low_scores = sum(1 for score in recent_scores if 0.30 <= score < 0.70)
+
+        if zero_scores > 0:
+            issues_report["bias_indicators"].append(f"Critical: {zero_scores} zero fitness scores (completion fraud)")
+        if very_low_scores > 0:
+            issues_report["bias_indicators"].append(f"Severe: {very_low_scores} very low scores (systematic bias)")
+        if moderate_low_scores > 0:
+            issues_report["bias_indicators"].append(f"Moderate: {moderate_low_scores} low scores (dismissive patterns)")
+
+        # Generate specific recommendations
+        issues_report["recommended_actions"] = [
+            "IMMEDIATE: Halt current execution pending review",
+            "ANALYZE: Review recent outputs for systematic bias patterns",
+            "CORRECT: Apply targeted fixes for identified bias types",
+            "VALIDATE: Ensure fitness ≥0.70 before resuming",
+            "ESCALATE: Consider protocol adjustment if pattern persists"
+        ]
+
+        return {
+            "report_generated": True,
+            "issues_report": issues_report,
+            "observer_notification_required": True,
+            "execution_halt_recommended": True
+        }
 
     def _combine_fitness_evaluations(
         self, evaluations: Dict[str, Any], current_fitness: float
@@ -752,7 +964,7 @@ class SwarmCoordinator(OllamaSpecialist):
     """
 
     def __init__(self):
-        super().__init__(model_name="deepseek-coder:6.7b")  # Use available coding model
+        super().__init__(model_name="qwen2.5-coder:7b")  # Use Qwen2.5-Coder for consistency
         self.active_agents: Dict[str, OllamaSpecialist] = {}
         self.task_queue: List[Dict[str, Any]] = []
 

@@ -15,13 +15,15 @@ import os
 import tempfile
 import requests
 import hashlib
+import asyncio
+import aiohttp
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
 # Import evolutionary core and agents
 from evo_core import NeuroEvolutionEngine, EvolutionaryMetrics
-from agents import OllamaSpecialist, FitnessScorer, TTSHandler, SwarmCoordinator
+from agents import OllamaSpecialist, FitnessScorer, TTSHandler, SwarmCoordinator, YAMLSubAgentParser
 from protocol import RIPER_OMEGA_PROTOCOL_V26, builder_output_fitness, check_builder_bias
 from openrouter_client import OpenRouterClient, get_openrouter_client
 
@@ -30,6 +32,67 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+class AsyncSubAgentCoordinator:
+    """
+    Async coordination for YAML sub-agents with parallel Ollama processing
+    Supports OLLAMA_NUM_PARALLEL=4 for concurrent task delegation
+    """
+
+    def __init__(self, max_concurrent: int = 4):
+        self.max_concurrent = max_concurrent
+        self.yaml_parser = YAMLSubAgentParser()
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        logger.info(f"Async sub-agent coordinator initialized with {max_concurrent} concurrent tasks")
+
+    async def delegate_task_async(self, agent_name: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Async task delegation to sub-agent"""
+        async with self.semaphore:
+            try:
+                # Use synchronous delegation in thread pool for Ollama calls
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None,
+                    self.yaml_parser.delegate_task,
+                    agent_name,
+                    task_data
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Async delegation failed for {agent_name}: {e}")
+                return {"success": False, "agent": agent_name, "error": str(e)}
+
+    async def delegate_multiple_tasks(self, tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Delegate multiple tasks concurrently"""
+        async_tasks = []
+
+        for task in tasks:
+            agent_name = task.get('agent', 'swarm-coordinator')
+            task_data = task.get('data', {})
+
+            async_task = self.delegate_task_async(agent_name, task_data)
+            async_tasks.append(async_task)
+
+        # Execute all tasks concurrently
+        results = await asyncio.gather(*async_tasks, return_exceptions=True)
+
+        # Process results and handle exceptions
+        processed_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                processed_results.append({
+                    "success": False,
+                    "task_index": i,
+                    "error": str(result)
+                })
+            else:
+                processed_results.append(result)
+
+        successful_tasks = sum(1 for r in processed_results if r.get('success', False))
+        logger.info(f"Parallel tasks: {successful_tasks}/{len(tasks)} concurrent. Timeouts: Handled")
+
+        return processed_results
 
 
 def preload_ollama_model(

@@ -1,0 +1,39 @@
+# Fitness Evaluator Sub-Agent Configuration
+name: "fitness-evaluator"
+description: "DEAP fitness calculations and evolutionary optimization"
+task: "fitness evaluation"
+model: "qwen2.5-coder:7b"
+specialization: "fitness_optimization"
+
+# Task-specific parameters
+parameters:
+  evaluation_types:
+    - "individual_fitness"
+    - "population_metrics"
+    - "generation_analysis"
+    - "convergence_detection"
+  optimization_methods:
+    - "PGPE"
+    - "NES"
+    - "shallow_copy"
+    - "parallel_eval"
+  timeout: 120
+  max_retries: 2
+
+# Ollama-specific settings
+ollama_config:
+  temperature: 0.5
+  max_tokens: 3072
+  context_window: 12288
+
+# Performance targets
+targets:
+  fitness_threshold: 0.9
+  processing_time_max: 45
+  convergence_rate_min: 0.8
+
+# Integration points
+integrates_with:
+  - "evo_core.py"
+  - "economy_rewards.py"
+  - "DEAP_evolution"

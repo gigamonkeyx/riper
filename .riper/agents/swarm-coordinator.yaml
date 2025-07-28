@@ -1,0 +1,38 @@
+# Swarm Coordinator Sub-Agent Configuration
+name: "swarm-coordinator"
+description: "A2A communication and multi-agent coordination for RIPER-Ω system"
+task: "A2A coordination"
+model: "llama3.2:1b"
+specialization: "coordination"
+
+# Task-specific parameters
+parameters:
+  coordination_types:
+    - "agent_messaging"
+    - "task_delegation"
+    - "resource_allocation"
+    - "conflict_resolution"
+  communication_protocols:
+    - "A2A_standard"
+    - "bidirectional_ack"
+    - "error_handling"
+  timeout: 180
+  max_retries: 2
+
+# Ollama-specific settings
+ollama_config:
+  temperature: 0.3
+  max_tokens: 2048
+  context_window: 8192
+
+# Performance targets
+targets:
+  fitness_threshold: 0.85
+  processing_time_max: 30
+  coordination_success_min: 0.95
+
+# Integration points
+integrates_with:
+  - "orchestration.py"
+  - "agents.py"
+  - "A2ACommunicator"
