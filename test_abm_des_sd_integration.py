@@ -3,6 +3,7 @@ import logging
 from economy_sim import EconomySimulator, SimConfig, ABMSystem
 from orchestration import DESLogisticsSystem
 from economy_rewards import EconomyRewards
+from commit_checker import CommitChecker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -22,6 +23,7 @@ async def test_abm_des_sd_integration():
     print("\n=== ABM Testing ===")
     abm_results = await economy_sim.grant_model.abm_system.simulate_emergent_behaviors()
     print(f"ABM: Agents {abm_results['total_agents']} defined. Emergent behaviors: {abm_results['total_interactions']} observed.")
+    print(f"Cooperation rate: {abm_results['cooperation_rate']:.1f}%, Collaboration efficiency: {abm_results['collaboration_efficiency']:.1f}%")
     print(f"Fitness impact: Skill level {abm_results['avg_skill_level']:.3f}, Productivity {abm_results['avg_productivity']:.3f}")
     
     # Test DES: Grain donation logistics
@@ -33,6 +35,7 @@ async def test_abm_des_sd_integration():
     
     des_results = await des_system.process_donation_queue(max_events=5)
     print(f"DES: Queues {des_results['processed_events']}/3 processed. Throughput: {des_results['total_units']:.1f} units.")
+    print(f"Grain throughput: {des_results.get('grain_tons_per_day', 0):.2f} tons/day, Processing rate: {des_results.get('processing_rate', 0):.1f} units/hour")
     print(f"Perf: {des_results['avg_processing_time']:.2f} seconds avg, Efficiency: {des_results['queue_efficiency']:.3f}")
     
     # Test SD: Feedback loops
@@ -42,6 +45,7 @@ async def test_abm_des_sd_integration():
         demand_change=0.1   # 10% increase in demand
     )
     print(f"SD: Loops {sd_results['active_loops']} active. System change: {sd_results['total_system_change']:.3f}")
+    print(f"Grant impact: {sd_results.get('grant_impact_percent', 0):.1f}%, Supply-demand balance: {sd_results.get('supply_demand_balance', 0):.1f}%")
     print(f"Stability: {sd_results['stability_score']:.3f}")
     
     # Test integrated simulation
@@ -73,7 +77,12 @@ async def test_abm_des_sd_integration():
         print(f"Parsing: Success")
     except Exception as e:
         print(f"YAML: Parsing failed - {e}")
-    
+
+    # Test commit verification
+    print(f"\n=== Commit Verification ===")
+    commit_checker = CommitChecker()
+    commit_info = commit_checker.log_commit_verification()
+
     return {
         "abm_results": abm_results,
         "des_results": des_results,

@@ -128,19 +128,36 @@ Calculate overall system stability and recommend optimization (0.0-1.0 scale).""
             logger.warning(f"Ollama SD analysis failed: {e}")
             stability_score = 0.7
 
+        # Calculate detailed grant impact metrics
+        grant_impact_percent = abs(loop_impacts.get("grant_impact", 0.0)) * 100
+        supply_demand_balance = abs(loop_impacts.get("supply_demand", 0.0)) * 100
+        community_feedback_strength = abs(loop_impacts.get("community_demand", 0.0)) * 100
+
+        # Log detailed SD metrics
+        logger.info(f"Metrics: SD grant impact {grant_impact_percent:.1f}%, "
+                   f"supply-demand balance {supply_demand_balance:.1f}%, "
+                   f"community feedback {community_feedback_strength:.1f}%. "
+                   f"Fitness impact: {stability_score:.3f}")
+
         # Log feedback loop activity
         self.loop_history.append({
             "grant_change": grant_change,
             "demand_change": demand_change,
             "loop_impacts": loop_impacts,
             "system_state": self.system_state.copy(),
-            "stability_score": stability_score
+            "stability_score": stability_score,
+            "grant_impact_percent": grant_impact_percent,
+            "supply_demand_balance": supply_demand_balance,
+            "community_feedback_strength": community_feedback_strength
         })
 
         return {
             "active_loops": len(self.feedback_loops),
             "total_system_change": total_system_change,
             "stability_score": stability_score,
+            "grant_impact_percent": grant_impact_percent,
+            "supply_demand_balance": supply_demand_balance,
+            "community_feedback_strength": community_feedback_strength,
             "system_state": self.system_state,
             "loop_impacts": loop_impacts
         }
@@ -320,10 +337,12 @@ Provide numerical recommendations only."""
                 else:
                     raise ImportError("Ollama not available")
 
-                # Fine-tuned PGPE parameters for integration fitness optimization
-                learning_rate = 0.01  # Reduced for stable convergence to 1.0
-                sigma = 0.15  # Reduced variance for precision targeting
+                # Ultra-fine-tuned PGPE parameters for 1.0 fitness target
+                learning_rate = 0.005  # Further reduced for precise convergence
+                sigma = 0.1  # Tighter exploration for stability
                 population_size = 30  # Optimized for efficiency
+
+                logger.info(f"PGPE: Params tuned (lr={learning_rate}, sigma={sigma}, pop={population_size})")
 
                 if "learning_rate" in ollama_analysis.lower():
                     if "0.1" in ollama_analysis:

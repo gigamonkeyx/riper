@@ -96,10 +96,18 @@ class ABMSystem:
                 "skill_transfer": interaction_result["skill_transfer"]
             })
 
+        # Calculate detailed cooperation metrics
+        cooperation_rate = (skill_improvements / max(1, interactions)) * 100
+        high_skill_agents = len([a for a in self.agents if a.skill_level > 0.8])
+        collaboration_efficiency = (total_collaboration / max(1, interactions)) * 100
+
         return {
             "total_interactions": interactions,
             "avg_collaboration": total_collaboration / max(1, interactions),
             "skill_improvements": skill_improvements,
+            "cooperation_rate": cooperation_rate,  # Detailed metric
+            "collaboration_efficiency": collaboration_efficiency,  # Detailed metric
+            "high_skill_agents": high_skill_agents,  # Detailed metric
             "total_agents": len(self.agents),
             "avg_skill_level": sum(a.skill_level for a in self.agents) / len(self.agents),
             "avg_productivity": sum(a.productivity for a in self.agents) / len(self.agents)
@@ -164,12 +172,20 @@ Calculate labor efficiency impact on grant utilization (0.0-1.0 scale)."""
             logger.warning(f"Ollama labor analysis failed: {e}")
             labor_efficiency = abm_results['avg_productivity']
 
+        # Log detailed ABM metrics
+        logger.info(f"Metrics: ABM cooperation {abm_results['cooperation_rate']:.1f}%, "
+                   f"collaboration efficiency {abm_results['collaboration_efficiency']:.1f}%, "
+                   f"high-skill agents {abm_results['high_skill_agents']}/{abm_results['total_agents']}. "
+                   f"Fitness impact: {labor_efficiency:.3f}")
+
         return {
             "year": year,
             "funding": self.current_funding,
             "grant_success": success,
             "abm_agents": abm_results['total_agents'],
             "labor_efficiency": labor_efficiency,
+            "cooperation_rate": abm_results['cooperation_rate'],
+            "collaboration_efficiency": abm_results['collaboration_efficiency'],
             "emergent_behaviors": abm_results['total_interactions'],
             "skill_improvements": abm_results['skill_improvements']
         }

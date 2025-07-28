@@ -145,14 +145,26 @@ Calculate processing efficiency (0.0-1.0) and estimated completion time."""
             except queue.Empty:
                 break
 
-        # Calculate final metrics
+        # Calculate final metrics with detailed grain throughput
         if processed_count > 0:
             self.throughput_metrics["avg_processing_time"] = total_processing_time / processed_count
             self.throughput_metrics["queue_efficiency"] = sum(e["efficiency"] for e in self.processed_events[-processed_count:]) / processed_count
 
+            # Calculate detailed throughput metrics
+            grain_tons_per_day = (self.throughput_metrics["processed_units"] / 1000) * 24  # Convert to tons/day
+            processing_rate = self.throughput_metrics["processed_units"] / max(1, self.current_time)  # Units per time
+
+            # Log detailed DES metrics
+            logger.info(f"Metrics: DES throughput {grain_tons_per_day:.2f} tons/day, "
+                       f"processing rate {processing_rate:.1f} units/hour, "
+                       f"queue efficiency {self.throughput_metrics['queue_efficiency']:.1f}%. "
+                       f"Fitness impact: {self.throughput_metrics['queue_efficiency']:.3f}")
+
         return {
             "processed_events": processed_count,
             "total_units": self.throughput_metrics["processed_units"],
+            "grain_tons_per_day": grain_tons_per_day if processed_count > 0 else 0.0,
+            "processing_rate": processing_rate if processed_count > 0 else 0.0,
             "avg_processing_time": self.throughput_metrics["avg_processing_time"],
             "queue_efficiency": self.throughput_metrics["queue_efficiency"],
             "current_time": self.current_time
