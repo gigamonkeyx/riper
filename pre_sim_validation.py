@@ -231,9 +231,13 @@ Evaluate: Rate, sustainability"""
         else:
             average_fitness = 0.5  # Fallback if no cycles completed
 
-        # Final comprehensive audit
-        if cycle_results:
-            narrative = self.integrate_tts_narrative(cycle_results[-1]["sim_data"])
+        # Final comprehensive audit with error handling
+        if cycle_results and cycle_results[-1].get("sim_data"):
+            try:
+                narrative = self.integrate_tts_narrative(cycle_results[-1]["sim_data"])
+            except Exception as e:
+                logger.warning(f"Narrative generation failed: {e}")
+                narrative = f"Narrative generation failed: {str(e)}"
         else:
             narrative = "No cycles completed for narrative generation"
 

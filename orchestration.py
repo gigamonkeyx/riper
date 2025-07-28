@@ -721,6 +721,14 @@ class Builder:
         self.camel_tts_agent = CamelModularAgent(f"{agent_id}_tts", "tts")
         self.camel_general_agent = CamelModularAgent(f"{agent_id}_general", "general")
 
+        # YAML sub-agent coordinator for load balancing
+        self.async_coordinator = AsyncSubAgentCoordinator(max_concurrent=4)
+        self.task_distribution = {
+            "grant_calculations": "grant-modeler",  # qwen2.5-coder:7b
+            "coordination": "swarm-coordinator",    # llama3.2:1b
+            "fitness_evaluation": "fitness-evaluator"  # qwen2.5-coder:7b
+        }
+
         # Qwen3 integration via OpenRouter
         self.openrouter_client = get_openrouter_client()
         self.qwen3_model = "qwen/qwen-2.5-coder-32b-instruct"
@@ -813,6 +821,48 @@ Provide analysis and recommended response."""
             return result
 
         return {"status": "coordination_processed", "analysis": coordination_analysis}
+
+    async def delegate_balanced_tasks(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Load-balanced task delegation across YAML sub-agents"""
+        start_time = time.time()
+
+        # Distribute tasks based on specialization
+        distributed_tasks = []
+        for task in tasks:
+            task_type = task.get("type", "general")
+            agent_name = self.task_distribution.get(task_type, "swarm-coordinator")
+
+            distributed_tasks.append({
+                "agent": agent_name,
+                "data": task.get("data", {}),
+                "original_type": task_type
+            })
+
+        # Execute tasks with async coordination
+        results = await self.async_coordinator.delegate_multiple_tasks(distributed_tasks)
+
+        # Analyze load balancing performance
+        agent_usage = {}
+        successful_tasks = 0
+
+        for result in results:
+            agent = result.get("agent", "unknown")
+            agent_usage[agent] = agent_usage.get(agent, 0) + 1
+            if result.get("success", False):
+                successful_tasks += 1
+
+        execution_time = time.time() - start_time
+
+        logger.info(f"Sub-agents: Balanced {len(tasks)} tasks. Perf: {execution_time:.2f} seconds")
+        logger.info(f"Agent usage: {agent_usage}")
+
+        return {
+            "success": successful_tasks == len(tasks),
+            "results": results,
+            "agent_usage": agent_usage,
+            "execution_time": execution_time,
+            "load_balanced": True
+        }
 
     def _handle_evolution_update(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Handle evolutionary update messages with complex A2A coordination"""
