@@ -137,7 +137,8 @@ Focus on grain donations, organic suppliers, and public data integration."""
                 messages=[
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_content}
-                ]
+                ],
+                options={'timeout': 300}  # 5 minute timeout
             )
             execution_time = time.time() - start_time
 

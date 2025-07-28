@@ -147,7 +147,8 @@ class CamelModularAgent:
                     }, {
                         'role': 'user',
                         'content': task_prompt
-                    }]
+                    }],
+                    options={'timeout': 300}  # 5 minute timeout
                 )
 
                 ollama_response = response['message']['content']
