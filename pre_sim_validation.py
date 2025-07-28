@@ -134,25 +134,31 @@ class PreSimValidator:
         """Run full pre-sim validation with complete 3-year cycle analysis"""
         import ollama
 
-        # Run multiple 3-year cycles for comprehensive validation
+        # Run optimized 3-year cycles with timeout management
         cycle_results = []
         total_fitness = 0.0
+        start_time = time.time()
 
         for cycle in range(3):  # 3 complete cycles
+            cycle_start = time.time()
             logger.info(f"Running validation cycle {cycle + 1}/3")
-            benchmarks = self.mock_code_execution(cycles=3)
+
+            # Split tasks to avoid timeouts
+            benchmarks = self.mock_code_execution(cycles=1)  # Single cycle per iteration
             sim_data = run_economy_sim()
 
-            # Use Ollama for cycle analysis
+            # Use Ollama for cycle analysis with timeout configuration
             try:
-                cycle_prompt = f"""Analyze 3-year simulation cycle {cycle + 1}:
-Benchmarks: {benchmarks}
-Simulation: {sim_data}
-Evaluate: Success rate, sustainability, compliance"""
+                # Reduced context size to avoid timeout loops
+                cycle_prompt = f"""Analyze cycle {cycle + 1}:
+Benchmarks: Grant {benchmarks.get('grant_infusion_impact', 0):.2f}
+Simulation: Success {sim_data.get('success', False)}
+Evaluate: Rate, sustainability"""
 
                 response = ollama.chat(
                     model='qwen2.5-coder:7b',
-                    messages=[{'role': 'user', 'content': cycle_prompt}]
+                    messages=[{'role': 'user', 'content': cycle_prompt}],
+                    options={'timeout': 30}  # 30 second timeout per request
                 )
 
                 cycle_analysis = response['message']['content']

@@ -758,22 +758,24 @@ Provide analysis and recommended response."""
 
         logger.info(f"Evolution update - Generation: {generation}, Fitness: {current_fitness:.3f}")
 
-        # Use deepseek-r1:8b for complex stateful planning
+        # Use deepseek-r1:8b for extended stateful planning with 3-year metrics
         try:
-            planning_prompt = f"""Complex A2A coordination analysis:
+            planning_prompt = f"""Extended A2A coordination for 3-year cycles:
 Generation: {generation}
 Current Fitness: {current_fitness}
-Target: >1.0
+Target: 1.0 (PGPE/NES optimized)
 
-Generate stateful coordination plan:
-1. Next generation strategy
-2. Resource allocation
-3. Agent coordination priorities
-4. Risk mitigation steps"""
+Generate extended stateful plan:
+1. Multi-generation strategy (3-year horizon)
+2. GPU resource optimization (RTX 3080)
+3. Agent coordination depth (Camel-Ollama integration)
+4. Fitness progression milestones
+5. Risk mitigation with fallbacks"""
 
             response = ollama.chat(
                 model='deepseek-r1:8b',
-                messages=[{'role': 'user', 'content': planning_prompt}]
+                messages=[{'role': 'user', 'content': planning_prompt}],
+                options={'timeout': 45}  # Extended timeout for complex planning
             )
 
             coordination_plan = response['message']['content']
