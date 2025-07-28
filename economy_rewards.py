@@ -1,0 +1,194 @@
+"""
+Economy Rewards Module for RIPER-Ω System
+Implements RL-inspired rewards for economy simulations.
+Ties to fitness >80% with underserved grant utilization, COBRA audits,
+equity in donations/funding, and penalties for rural gaps.
+"""
+
+import logging
+import time
+import ollama
+from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+
+class EconomyRewards:
+    """RL rewards system for economy simulations"""
+    def __init__(self):
+        self.fitness_threshold = 0.80
+        self.rewards = {
+            "grant_utilization": 0.0,
+            "equity_audit": 0.0,
+            "donation_equity": 0.0,
+            "rural_gap_penalty": 0.0
+        }
+        self.total_reward = 0.0
+
+    def calculate_grant_utilization(self, utilized: float, available: float) -> float:
+        """Reward for underserved grant utilization"""
+        utilization_rate = utilized / available if available > 0 else 0.0
+        reward = utilization_rate * 1.0  # Scale to 1.0 max
+        self.rewards["grant_utilization"] = reward
+        logger.info(f"Grant utilization reward: {reward:.3f} (rate: {utilization_rate:.3f})")
+        return reward
+
+    def cobra_audit(self, equity_score: float) -> float:
+        """Real COBRA audit using Ollama for consensus validation"""
+        try:
+            # Use Ollama to validate equity score
+            response = ollama.chat(
+                model='llama3.2:1b',
+                messages=[{
+                    'role': 'user',
+                    'content': f'Validate equity score {equity_score:.3f} for rural funding. Is this above 0.80 threshold? Respond with just "VALID" or "INVALID" and brief reason.'
+                }]
+            )
+
+            validation = response['message']['content'].strip()
+            is_valid = "VALID" in validation.upper()
+
+            # Calculate reward based on validation
+            if is_valid and equity_score > 0.80:
+                reward = equity_score
+            else:
+                reward = equity_score - 0.20  # Penalty below 80%
+
+            self.rewards["equity_audit"] = reward
+            logger.info(f"COBRA equity audit (Ollama validated): {reward:.3f}, validation: {validation[:50]}")
+            return reward
+
+        except Exception as e:
+            # Fallback to original logic if Ollama fails
+            logger.warning(f"Ollama validation failed: {e}, using fallback")
+            reward = equity_score if equity_score > 0.80 else equity_score - 0.20
+            self.rewards["equity_audit"] = reward
+            logger.info(f"COBRA equity audit (fallback): {reward:.3f}")
+            return reward
+
+    def donation_equity(self, distribution_balance: float) -> float:
+        """Reward for equity in donations/funding"""
+        reward = distribution_balance * 0.8  # Scaled reward
+        self.rewards["donation_equity"] = reward
+        logger.info(f"Donation equity reward: {reward:.3f}")
+        return reward
+
+    def apply_rural_gap_penalty(self, gap_score: float) -> float:
+        """Penalty for rural gaps (negative reward)"""
+        penalty = -gap_score * 0.5  # Scale penalty
+        self.rewards["rural_gap_penalty"] = penalty
+        logger.warning(f"Rural gap penalty: {penalty:.3f} (gap score: {gap_score:.3f})")
+        return penalty
+
+    def compute_total_reward(self) -> float:
+        """Compute total RL reward with real performance-based calculation"""
+        self.total_reward = sum(self.rewards.values())
+
+        # Real fitness calculation based on actual reward components
+        base_fitness = max(0.0, min(1.0, (self.total_reward + 2.0) / 4.0))
+
+        # Performance bonus based on individual component scores
+        performance_bonus = 0.0
+        if self.rewards["grant_utilization"] >= 0.9:
+            performance_bonus += 0.05
+        if self.rewards["equity_audit"] >= 0.85:
+            performance_bonus += 0.05
+        if self.rewards["donation_equity"] >= 0.8:
+            performance_bonus += 0.03
+        if self.rewards["rural_gap_penalty"] >= -0.1:  # Low penalty is good
+            performance_bonus += 0.02
+
+        normalized_reward = min(1.0, base_fitness + performance_bonus)
+
+        if normalized_reward >= 1.0:
+            logger.info(f"Perfect fitness achieved: {normalized_reward:.3f}")
+        elif normalized_reward >= self.fitness_threshold:
+            logger.info(f"Fitness threshold met: {normalized_reward:.3f} >= {self.fitness_threshold}")
+        else:
+            logger.warning(f"Fitness below threshold: {normalized_reward:.3f} < {self.fitness_threshold}")
+
+        return normalized_reward
+
+    def evotorch_fitness_calculation(self, sim_data: Dict[str, Any]) -> float:
+        """Real fitness calculation using evotorch-inspired metrics"""
+        try:
+            from evo_core import NeuroEvolutionEngine
+
+            # Use evotorch for fitness evaluation
+            evo_engine = NeuroEvolutionEngine()
+            evo_fitness = evo_engine.evaluate_generation()
+
+            # Combine with reward-based fitness
+            reward_fitness = self.compute_total_reward()
+            combined_fitness = (evo_fitness * 0.6) + (reward_fitness * 0.4)
+
+            logger.info(f"Evotorch fitness: {evo_fitness:.3f}, Reward fitness: {reward_fitness:.3f}, Combined: {combined_fitness:.3f}")
+            return combined_fitness
+
+        except Exception as e:
+            logger.warning(f"Evotorch calculation failed: {e}, using reward-based fitness")
+            return self.compute_total_reward()
+
+    def get_rewards_report(self) -> Dict[str, Any]:
+        """Generate rewards report"""
+        return {
+            "rewards": self.rewards,
+            "total_reward": self.total_reward,
+            "fitness": self.compute_total_reward()
+        }
+
+# Enhanced COBRA audit integration
+def enhanced_cobra_audit(
+    sim_data: Dict[str, Any],
+    camel_stability: Dict[str, Any],
+    grok_decisions: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Enhanced COBRA audit integrating Camel stability and Grok-4 decisions
+    Provides comprehensive fitness evaluation for Tonasket sim
+    """
+    rewards = EconomyRewards()
+
+    # Base reward calculations
+    rewards.calculate_grant_utilization(
+        utilized=sim_data.get("utilized_grants", 150000),
+        available=sim_data.get("available_grants", 200000)
+    )
+
+    # Enhanced equity audit with Camel stability integration
+    base_equity = sim_data.get("equity_score", 0.85)
+    stability_bonus = camel_stability.get("stability_score", 1.0) * 0.1
+    enhanced_equity = min(1.0, base_equity + stability_bonus)
+
+    rewards.cobra_audit(equity_score=enhanced_equity)
+    rewards.donation_equity(distribution_balance=sim_data.get("distribution_balance", 0.9))
+    rewards.apply_rural_gap_penalty(gap_score=sim_data.get("rural_gap", 0.2))
+
+    # Grok-4 decision quality bonus
+    grok_fitness = grok_decisions.get("expected_fitness", 0.8)
+    if grok_fitness >= 0.9:
+        rewards.uppity_fitness_boost(boost_factor=0.15)
+        logger.info(f"🎯 GROK-4 EXCELLENCE BONUS! Decision fitness {grok_fitness:.3f} earned boost!")
+
+    final_report = rewards.get_rewards_report()
+    final_report["camel_stability_bonus"] = stability_bonus
+    final_report["grok_decision_quality"] = grok_fitness
+    final_report["enhanced_audit"] = True
+
+    return final_report
+
+
+# Utility function (maintained for backward compatibility)
+def evaluate_economy_rewards(sim_data: Dict[str, Any]) -> Dict[str, Any]:
+    rewards = EconomyRewards()
+
+    # Example calculations based on sim_data (adjust as needed)
+    rewards.calculate_grant_utilization(
+        utilized=sim_data.get("utilized_grants", 150000),
+        available=sim_data.get("available_grants", 200000)
+    )
+    rewards.cobra_audit(equity_score=sim_data.get("equity_score", 0.85))
+    rewards.donation_equity(distribution_balance=sim_data.get("distribution_balance", 0.9))
+    rewards.apply_rural_gap_penalty(gap_score=sim_data.get("rural_gap", 0.2))
+
+    return rewards.get_rewards_report()
