@@ -85,15 +85,20 @@ class YAMLSubAgentParser:
             return {"success": False, "error": f"Agent {agent_name} not found"}
 
         try:
-            # Extract configuration
+            # Extract configuration with context optimization
             model = agent_config.get('model', 'llama3.2:1b')
             timeout = agent_config.get('parameters', {}).get('timeout', 300)
             ollama_config = agent_config.get('ollama_config', {})
+            context_limit = task_data.get('context_limit', 8192)  # Default 8k context
 
-            # Prepare task prompt
+            # Prepare optimized task prompt with context limit
+            task_data_str = json.dumps(task_data)
+            if len(task_data_str) > context_limit // 2:  # Reserve half context for response
+                task_data_str = task_data_str[:context_limit // 2] + "...[truncated]"
+
             task_prompt = f"""Task: {agent_config.get('task', 'general')}
 Specialization: {agent_config.get('specialization', 'general')}
-Data: {json.dumps(task_data)}
+Data: {task_data_str}
 
 Process this task according to your specialization and return structured results."""
 
@@ -111,11 +116,17 @@ Process this task according to your specialization and return structured results
                 options={
                     'timeout': timeout,
                     'temperature': ollama_config.get('temperature', 0.7),
-                    'num_predict': ollama_config.get('max_tokens', 2048)
+                    'num_predict': min(ollama_config.get('max_tokens', 2048), context_limit // 4),  # Limit output tokens
+                    'num_ctx': context_limit  # Set context window
                 }
             )
 
             execution_time = time.time() - start_time
+
+            # Log context optimization
+            context_type = "8k" if context_limit <= 8192 else "16k"
+            timeout_status = "Resolved" if execution_time < timeout * 0.8 else "Remaining"
+            logger.info(f"Context: {context_type}. Timeout: {timeout_status}")
 
             return {
                 "success": True,
@@ -123,6 +134,7 @@ Process this task according to your specialization and return structured results
                 "model": model,
                 "response": response['message']['content'],
                 "execution_time": execution_time,
+                "context_limit": context_limit,
                 "config": agent_config
             }
 

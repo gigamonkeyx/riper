@@ -40,23 +40,103 @@ class AsyncSubAgentCoordinator:
     Supports OLLAMA_NUM_PARALLEL=4 with adaptive load balancing
     """
 
-    def __init__(self, max_concurrent: int = 4):
+    def __init__(self, max_concurrent: int = None):
+        # Dynamic VRAM-based concurrent task calculation
+        if max_concurrent is None:
+            max_concurrent = self._calculate_optimal_concurrent()
+
         self.max_concurrent = max_concurrent
-        self.yaml_parser = YAMLSubAgentParser()
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.task_queue = []
         self.active_tasks = 0
         self.scaling_enabled = True
+        self.initialization_time = 0
 
         # Set OLLAMA_NUM_PARALLEL environment variable
         os.environ['OLLAMA_NUM_PARALLEL'] = str(max_concurrent)
 
-        logger.info(f"Dynamic async sub-agent coordinator initialized with {max_concurrent} concurrent tasks")
+        # Async initialization with staggered starts
+        self.yaml_parser = None
+        self.initialized = False
+
+        logger.info(f"Dynamic async sub-agent coordinator initializing with {max_concurrent} concurrent tasks")
+
+    def _calculate_optimal_concurrent(self) -> int:
+        """Calculate optimal concurrent tasks based on RTX 3080 VRAM"""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                # RTX 3080 has ~10GB VRAM
+                total_memory = torch.cuda.get_device_properties(0).total_memory
+                memory_gb = total_memory / (1024**3)
+
+                # Conservative estimation: 2-4 tasks based on VRAM
+                if memory_gb >= 10:  # RTX 3080 or better
+                    optimal_tasks = 4
+                elif memory_gb >= 8:  # RTX 3070 level
+                    optimal_tasks = 3
+                else:  # Lower VRAM
+                    optimal_tasks = 2
+
+                logger.info(f"GPU VRAM: {memory_gb:.1f}GB, Optimal tasks: {optimal_tasks}")
+                return optimal_tasks
+            else:
+                logger.warning("CUDA not available, using CPU fallback")
+                return 2
+        except Exception as e:
+            logger.warning(f"VRAM detection failed: {e}, using default")
+            return 3
+
+    async def async_initialize(self):
+        """Async initialization with staggered sub-agent starts"""
+        if self.initialized:
+            return
+
+        start_time = time.time()
+
+        try:
+            # Staggered initialization to prevent timeout bottlenecks
+            await asyncio.sleep(0.1)  # Small delay to prevent race conditions
+
+            # Initialize YAML parser asynchronously
+            loop = asyncio.get_event_loop()
+            self.yaml_parser = await loop.run_in_executor(None, YAMLSubAgentParser)
+
+            # Stagger sub-agent availability checks
+            await asyncio.sleep(0.5)
+
+            self.initialized = True
+            self.initialization_time = time.time() - start_time
+
+            logger.info(f"Init: Async. Perf: {self.initialization_time:.2f} seconds")
+
+        except Exception as e:
+            logger.error(f"Async initialization failed: {e}")
+            # Fallback to synchronous initialization
+            try:
+                self.yaml_parser = YAMLSubAgentParser()
+                self.initialized = True
+                self.initialization_time = time.time() - start_time
+                logger.info(f"Init: Sync (fallback). Perf: {self.initialization_time:.2f} seconds")
+            except Exception as fallback_error:
+                logger.error(f"Fallback initialization failed: {fallback_error}")
+                self.initialized = False
 
     async def delegate_task_async(self, agent_name: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Async task delegation to sub-agent"""
+        """Async task delegation to sub-agent with initialization check"""
+        # Ensure async initialization is complete
+        if not self.initialized:
+            await self.async_initialize()
+
+        if not self.initialized or not self.yaml_parser:
+            return {"success": False, "agent": agent_name, "error": "Initialization failed"}
+
         async with self.semaphore:
             try:
+                # Staggered task execution to prevent overload
+                await asyncio.sleep(0.1 * self.active_tasks)
+                self.active_tasks += 1
+
                 # Use synchronous delegation in thread pool for Ollama calls
                 loop = asyncio.get_event_loop()
                 result = await loop.run_in_executor(
@@ -65,8 +145,12 @@ class AsyncSubAgentCoordinator:
                     agent_name,
                     task_data
                 )
+
+                self.active_tasks = max(0, self.active_tasks - 1)
                 return result
+
             except Exception as e:
+                self.active_tasks = max(0, self.active_tasks - 1)
                 logger.error(f"Async delegation failed for {agent_name}: {e}")
                 return {"success": False, "agent": agent_name, "error": str(e)}
 
@@ -126,7 +210,7 @@ class AsyncSubAgentCoordinator:
             self.max_concurrent = new_concurrent
             self.semaphore = asyncio.Semaphore(new_concurrent)
             os.environ['OLLAMA_NUM_PARALLEL'] = str(new_concurrent)
-            logger.info(f"Auto-scaling: Adjusted to {new_concurrent} concurrent tasks")
+            logger.info(f"Parallel tasks: {new_concurrent} adjusted. Perf: {avg_time:.2f} seconds")
 
         return {
             "recommendation": recommendation,

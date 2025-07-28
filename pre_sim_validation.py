@@ -173,7 +173,8 @@ class PreSimValidator:
                                 "cycle": cycle + 1,
                                 "year": year + 1,
                                 "simulation_type": "yearly_validation",
-                                "timeout": 60
+                                "timeout": 60,
+                                "context_limit": 8192  # 8k context for performance
                             }
 
                             delegation_result = yaml_parser.delegate_task('swarm-coordinator', year_task)
