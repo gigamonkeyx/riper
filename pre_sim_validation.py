@@ -169,15 +169,25 @@ class PreSimValidator:
                     if yaml_available:
                         # Delegate year simulation to YAML sub-agent (llama3.2:1b)
                         try:
+                            # Model selection based on task complexity
+                            if year == 0:  # First year - complex initialization
+                                selected_agent = 'grant-modeler'  # qwen2.5-coder:7b for heavy computation
+                                model_type = "qwen2.5"
+                            else:  # Subsequent years - lighter coordination
+                                selected_agent = 'swarm-coordinator'  # llama3.2:1b for lightweight tasks
+                                model_type = "llama3.2"
+
                             year_task = {
                                 "cycle": cycle + 1,
                                 "year": year + 1,
                                 "simulation_type": "yearly_validation",
                                 "timeout": 60,
-                                "context_limit": 8192  # 8k context for performance
+                                "context_limit": 8192,  # 8k context for performance
+                                "model_type": model_type,
+                                "complexity": "heavy" if year == 0 else "light"
                             }
 
-                            delegation_result = yaml_parser.delegate_task('swarm-coordinator', year_task)
+                            delegation_result = yaml_parser.delegate_task(selected_agent, year_task)
 
                             if delegation_result['success']:
                                 # Use delegated results with fallback simulation
@@ -310,15 +320,23 @@ Evaluate: Rate, sustainability"""
 
         total_time = time.time() - start_time
 
-        # Calculate YAML delegation metrics
+        # Calculate YAML delegation and model usage metrics
         total_years = sum(len(result.get("yearly_results", [])) for result in cycle_results if "yearly_results" in result)
         yaml_delegated_years = sum(
             sum(1 for year in result.get("yearly_results", []) if year.get("yaml_delegated", False))
             for result in cycle_results if "yearly_results" in result
         )
 
+        # Calculate model swapping efficiency
+        qwen_tasks = completed_cycles  # First year of each cycle uses qwen2.5
+        llama_tasks = max(0, yaml_delegated_years - qwen_tasks)  # Subsequent years use llama3.2
+
+        # Estimate VRAM usage (approximate)
+        estimated_vram_mb = (qwen_tasks * 4000) + (llama_tasks * 1500)  # Rough estimates
+
         logger.info(f"Cycles: Chunked {completed_cycles}/3. Perf: {total_time:.2f} seconds")
         logger.info(f"YAML delegation: {yaml_delegated_years}/{total_years} years delegated")
+        logger.info(f"Models: Swapped {qwen_tasks}/{llama_tasks}. VRAM usage: {estimated_vram_mb} MB")
         logger.info(f"Full validation complete: Average fitness {average_fitness:.3f}, Compliance: {compliance}")
 
         return {

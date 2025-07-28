@@ -846,12 +846,19 @@ class Builder:
         self.camel_tts_agent = CamelModularAgent(f"{agent_id}_tts", "tts")
         self.camel_general_agent = CamelModularAgent(f"{agent_id}_general", "general")
 
-        # YAML sub-agent coordinator for load balancing
+        # YAML sub-agent coordinator with prioritized task distribution
         self.async_coordinator = AsyncSubAgentCoordinator(max_concurrent=4)
         self.task_distribution = {
-            "grant_calculations": "grant-modeler",  # qwen2.5-coder:7b
-            "coordination": "swarm-coordinator",    # llama3.2:1b
-            "fitness_evaluation": "fitness-evaluator"  # qwen2.5-coder:7b
+            "grant_calculations": "grant-modeler",  # qwen2.5-coder:7b - HIGH PRIORITY
+            "fitness_evaluation": "fitness-evaluator",  # qwen2.5-coder:7b - HIGH PRIORITY
+            "coordination": "swarm-coordinator"    # llama3.2:1b - STANDARD PRIORITY
+        }
+
+        # Priority weights for task allocation optimization
+        self.task_priorities = {
+            "grant_calculations": 3,  # Highest impact for USDA grants
+            "fitness_evaluation": 2,  # Critical for 1.0 fitness target
+            "coordination": 1         # Supporting role
         }
 
         # Qwen3 integration via OpenRouter
@@ -948,19 +955,29 @@ Provide analysis and recommended response."""
         return {"status": "coordination_processed", "analysis": coordination_analysis}
 
     async def delegate_balanced_tasks(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Load-balanced task delegation across YAML sub-agents"""
+        """Priority-optimized task delegation across YAML sub-agents"""
         start_time = time.time()
 
-        # Distribute tasks based on specialization
+        # Sort tasks by priority for optimal allocation
+        prioritized_tasks = sorted(tasks, key=lambda t: self.task_priorities.get(t.get("type", "general"), 0), reverse=True)
+
+        # Distribute tasks based on priority and specialization
         distributed_tasks = []
-        for task in tasks:
+        high_priority_count = 0
+
+        for task in prioritized_tasks:
             task_type = task.get("type", "general")
             agent_name = self.task_distribution.get(task_type, "swarm-coordinator")
+            priority = self.task_priorities.get(task_type, 1)
+
+            if priority >= 2:  # High priority tasks
+                high_priority_count += 1
 
             distributed_tasks.append({
                 "agent": agent_name,
                 "data": task.get("data", {}),
-                "original_type": task_type
+                "original_type": task_type,
+                "priority": priority
             })
 
         # Execute tasks with async coordination
@@ -978,7 +995,7 @@ Provide analysis and recommended response."""
 
         execution_time = time.time() - start_time
 
-        logger.info(f"Sub-agents: Balanced {len(tasks)} tasks. Perf: {execution_time:.2f} seconds")
+        logger.info(f"Sub-agents: Prioritized {high_priority_count}/{len(tasks)}. Perf: {execution_time:.2f} seconds")
         logger.info(f"Agent usage: {agent_usage}")
 
         return {
@@ -986,7 +1003,8 @@ Provide analysis and recommended response."""
             "results": results,
             "agent_usage": agent_usage,
             "execution_time": execution_time,
-            "load_balanced": True
+            "high_priority_tasks": high_priority_count,
+            "priority_optimized": True
         }
 
     def _handle_evolution_update(self, payload: Dict[str, Any]) -> Dict[str, Any]:
