@@ -1,0 +1,118 @@
+# RIPER-Ω Logistics Agent Configuration
+# DES tasks for grain donation supply chain management
+# Uses llama3.2:1b for lightweight logistics processing
+
+agent_type: "logistics-coordinator"
+model: "llama3.2:1b"
+specialization: "supply_chain_logistics"
+priority: 2
+
+# DES Configuration
+des_config:
+  max_queue_size: 50
+  processing_batch_size: 10
+  default_processing_time: 0.1  # time units per unit
+  efficiency_threshold: 0.7
+
+# Grain Donation Sources
+donation_sources:
+  - name: "Bluebird Farm"
+    location: "Tonasket, WA"
+    capacity: 1000  # units per cycle
+    reliability: 0.9
+    priority: 1
+  
+  - name: "Okanogan Valley Grains"
+    location: "Okanogan, WA"
+    capacity: 800
+    reliability: 0.85
+    priority: 2
+  
+  - name: "Community Gardens"
+    location: "Tonasket, WA"
+    capacity: 300
+    reliability: 0.7
+    priority: 3
+
+# Processing Destinations
+destinations:
+  - name: "Pie Factory"
+    location: "Tonasket, WA"
+    processing_capacity: 500  # units per hour
+    specialization: "baked_goods"
+    priority: 1
+  
+  - name: "Food Bank"
+    location: "Tonasket, WA"
+    processing_capacity: 800
+    specialization: "distribution"
+    priority: 1
+  
+  - name: "School Kitchen"
+    location: "Tonasket, WA"
+    processing_capacity: 200
+    specialization: "meal_prep"
+    priority: 2
+
+# Logistics Tasks
+tasks:
+  - task_id: "grain_intake"
+    description: "Process incoming grain donations"
+    model_delegation: "llama3.2:1b"
+    priority: 1
+    estimated_time: 5  # minutes
+    
+  - task_id: "quality_check"
+    description: "Verify grain quality and safety"
+    model_delegation: "llama3.2:1b"
+    priority: 1
+    estimated_time: 3
+    
+  - task_id: "inventory_update"
+    description: "Update inventory tracking systems"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 2
+    
+  - task_id: "distribution_planning"
+    description: "Plan optimal distribution routes"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 8
+    
+  - task_id: "delivery_coordination"
+    description: "Coordinate delivery schedules"
+    model_delegation: "llama3.2:1b"
+    priority: 3
+    estimated_time: 10
+
+# Performance Metrics
+metrics:
+  - name: "throughput"
+    description: "Units processed per hour"
+    target: 400
+    
+  - name: "efficiency"
+    description: "Processing efficiency ratio"
+    target: 0.85
+    
+  - name: "queue_time"
+    description: "Average time in queue (minutes)"
+    target: 15
+    
+  - name: "delivery_success"
+    description: "Successful delivery rate"
+    target: 0.95
+
+# Integration Settings
+integration:
+  abm_coordination: true  # Coordinate with ABM baker agents
+  sd_feedback: true       # Provide data to SD feedback loops
+  evotorch_optimization: true  # Use evotorch for route optimization
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  factual_reporting: true
+  metrics_tracking: true
+  performance_alerts: true

@@ -17,7 +17,11 @@ import requests
 import hashlib
 import asyncio
 import aiohttp
+import queue
+import threading
 from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from enum import Enum
 from dataclasses import dataclass
 from enum import Enum
 
@@ -32,6 +36,127 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+class DonationEventType(Enum):
+    """DES event types for grain donations"""
+    GRAIN_ARRIVAL = "grain_arrival"
+    PROCESSING_START = "processing_start"
+    PROCESSING_COMPLETE = "processing_complete"
+    DELIVERY = "delivery"
+
+
+@dataclass
+class DonationEvent:
+    """Discrete event for grain donation logistics"""
+    event_id: str
+    event_type: DonationEventType
+    timestamp: float
+    source: str  # e.g., "Bluebird Farm"
+    destination: str  # e.g., "Pie Factory"
+    quantity: float  # Amount in units
+    priority: int = 1  # 1=high, 2=medium, 3=low
+
+    def __lt__(self, other):
+        return (self.priority, self.timestamp) < (other.priority, other.timestamp)
+
+
+class DESLogisticsSystem:
+    """Discrete Event Simulation for grain donation logistics"""
+
+    def __init__(self):
+        self.event_queue = queue.PriorityQueue()
+        self.current_time = 0.0
+        self.processed_events = []
+        self.throughput_metrics = {
+            "total_donations": 0,
+            "processed_units": 0.0,
+            "avg_processing_time": 0.0,
+            "queue_efficiency": 0.0
+        }
+
+    def add_donation_event(self, source: str, destination: str, quantity: float, delay: float = 0.0):
+        """Add grain donation event to DES queue"""
+        event_id = f"{source}_{destination}_{int(time.time())}"
+        event = DonationEvent(
+            event_id=event_id,
+            event_type=DonationEventType.GRAIN_ARRIVAL,
+            timestamp=self.current_time + delay,
+            source=source,
+            destination=destination,
+            quantity=quantity
+        )
+        self.event_queue.put(event)
+        logger.info(f"DES: Added donation event {event_id} from {source} to {destination}")
+
+    async def process_donation_queue(self, max_events: int = 10) -> Dict[str, Any]:
+        """Process donation events using llama3.2:1b for lightweight logistics"""
+        processed_count = 0
+        total_processing_time = 0.0
+
+        while not self.event_queue.empty() and processed_count < max_events:
+            try:
+                event = self.event_queue.get_nowait()
+                start_time = time.time()
+
+                # Use llama3.2:1b for lightweight logistics processing
+                logistics_prompt = f"""Process grain donation logistics:
+Source: {event.source}
+Destination: {event.destination}
+Quantity: {event.quantity} units
+Event Type: {event.event_type.value}
+
+Calculate processing efficiency (0.0-1.0) and estimated completion time."""
+
+                try:
+                    import ollama
+                    response = ollama.chat(
+                        model='llama3.2:1b',
+                        messages=[{'role': 'user', 'content': logistics_prompt}]
+                    )
+
+                    # Simulate processing based on quantity
+                    processing_time = event.quantity * 0.1  # 0.1 time units per unit
+                    efficiency = min(1.0, 0.8 + (event.quantity / 1000))  # Scale efficiency
+
+                except Exception as e:
+                    logger.warning(f"Ollama logistics processing failed: {e}")
+                    processing_time = event.quantity * 0.15
+                    efficiency = 0.7
+
+                # Update metrics
+                self.throughput_metrics["total_donations"] += 1
+                self.throughput_metrics["processed_units"] += event.quantity
+                total_processing_time += processing_time
+
+                # Log processed event
+                self.processed_events.append({
+                    "event_id": event.event_id,
+                    "source": event.source,
+                    "destination": event.destination,
+                    "quantity": event.quantity,
+                    "processing_time": processing_time,
+                    "efficiency": efficiency
+                })
+
+                processed_count += 1
+                self.current_time += processing_time
+
+            except queue.Empty:
+                break
+
+        # Calculate final metrics
+        if processed_count > 0:
+            self.throughput_metrics["avg_processing_time"] = total_processing_time / processed_count
+            self.throughput_metrics["queue_efficiency"] = sum(e["efficiency"] for e in self.processed_events[-processed_count:]) / processed_count
+
+        return {
+            "processed_events": processed_count,
+            "total_units": self.throughput_metrics["processed_units"],
+            "avg_processing_time": self.throughput_metrics["avg_processing_time"],
+            "queue_efficiency": self.throughput_metrics["queue_efficiency"],
+            "current_time": self.current_time
+        }
 
 
 class AsyncSubAgentCoordinator:
