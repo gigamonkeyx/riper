@@ -256,7 +256,39 @@ Provide numerical recommendations only."""
 
             fitness_impact = combined_fitness - base_fitness
             solver_type = "PGPE" if evotorch_available else "Current"
+
+            # PGPE fitness monitoring with Ollama-qwen2.5 analysis
+            fitness_status = "Stable" if combined_fitness >= 1.0 else "Dropped"
+            if combined_fitness < 1.0:
+                # Flag fitness drop for monitoring
+                try:
+                    import ollama
+                    monitoring_prompt = f"""Fitness monitoring alert:
+Current fitness: {combined_fitness:.3f}
+Target: 1.0
+PGPE params: lr={learning_rate}, sigma={sigma}, pop={population_size}
+
+Analyze fitness drop and recommend parameter adjustments."""
+
+                    response = ollama.chat(
+                        model='qwen2.5-coder:7b',
+                        messages=[{
+                            'role': 'system',
+                            'content': 'You are a fitness monitoring specialist for PGPE optimization.'
+                        }, {
+                            'role': 'user',
+                            'content': monitoring_prompt
+                        }],
+                        options={'timeout': 30, 'num_ctx': 4096}
+                    )
+
+                    logger.warning(f"Fitness monitoring: {response['message']['content'][:100]}...")
+
+                except Exception as e:
+                    logger.warning(f"Fitness monitoring failed: {e}")
+
             logger.info(f"Tuning: PGPE params adjusted. Fitness impact: {fitness_impact:.3f}")
+            logger.info(f"Fitness: {fitness_status}. Value: {combined_fitness:.3f}")
             logger.info(f"PGPE fitness: {pgpe_fitness:.3f}, NES adjustment: {nes_adjustment:.3f}, Final: {combined_fitness:.3f}")
 
             return combined_fitness

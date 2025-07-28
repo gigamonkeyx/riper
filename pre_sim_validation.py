@@ -169,11 +169,16 @@ class PreSimValidator:
                     if yaml_available:
                         # Delegate year simulation to YAML sub-agent (llama3.2:1b)
                         try:
-                            # Model selection based on task complexity
-                            if year == 0:  # First year - complex initialization
+                            # Dynamic model selection based on task complexity analysis
+                            task_complexity = self._analyze_task_complexity(cycle, year, sim_data if 'sim_data' in locals() else {})
+
+                            if task_complexity == "complex":
                                 selected_agent = 'grant-modeler'  # qwen2.5-coder:7b for heavy computation
                                 model_type = "qwen2.5"
-                            else:  # Subsequent years - lighter coordination
+                            elif task_complexity == "moderate":
+                                selected_agent = 'fitness-evaluator'  # qwen2.5-coder:7b for analysis
+                                model_type = "qwen2.5"
+                            else:  # simple tasks
                                 selected_agent = 'swarm-coordinator'  # llama3.2:1b for lightweight tasks
                                 model_type = "llama3.2"
 
@@ -327,16 +332,26 @@ Evaluate: Rate, sustainability"""
             for result in cycle_results if "yearly_results" in result
         )
 
-        # Calculate model swapping efficiency
-        qwen_tasks = completed_cycles  # First year of each cycle uses qwen2.5
-        llama_tasks = max(0, yaml_delegated_years - qwen_tasks)  # Subsequent years use llama3.2
+        # Calculate dynamic model swapping efficiency
+        qwen_tasks = 0
+        llama_tasks = 0
 
-        # Estimate VRAM usage (approximate)
-        estimated_vram_mb = (qwen_tasks * 4000) + (llama_tasks * 1500)  # Rough estimates
+        for result in cycle_results:
+            if "yearly_results" in result:
+                for year_result in result["yearly_results"]:
+                    if year_result.get("yaml_delegated", False):
+                        complexity = year_result.get("complexity", "simple")
+                        if complexity in ["complex", "moderate"]:
+                            qwen_tasks += 1
+                        else:
+                            llama_tasks += 1
+
+        # Dynamic VRAM usage estimation based on actual model selection
+        estimated_vram_mb = (qwen_tasks * 4000) + (llama_tasks * 1500)  # Refined estimates
 
         logger.info(f"Cycles: Chunked {completed_cycles}/3. Perf: {total_time:.2f} seconds")
         logger.info(f"YAML delegation: {yaml_delegated_years}/{total_years} years delegated")
-        logger.info(f"Models: Swapped {qwen_tasks}/{llama_tasks}. VRAM usage: {estimated_vram_mb} MB")
+        logger.info(f"Models: Swapped {qwen_tasks}/{llama_tasks}. VRAM: {estimated_vram_mb} MB")
         logger.info(f"Full validation complete: Average fitness {average_fitness:.3f}, Compliance: {compliance}")
 
         return {
@@ -347,8 +362,44 @@ Evaluate: Rate, sustainability"""
             "audit": audit,
             "compliance": compliance,
             "full_validation": True,
-            "total_time": total_time
+            "total_time": total_time,
+            "model_swaps": {"qwen_tasks": qwen_tasks, "llama_tasks": llama_tasks}
         }
+
+    def _analyze_task_complexity(self, cycle: int, year: int, sim_data: Dict[str, Any]) -> str:
+        """Analyze task complexity for dynamic model selection"""
+        complexity_score = 0
+
+        # Cycle-based complexity (first cycle is most complex)
+        if cycle == 1:
+            complexity_score += 3
+        elif cycle == 2:
+            complexity_score += 2
+        else:
+            complexity_score += 1
+
+        # Year-based complexity (first year requires initialization)
+        if year == 0:
+            complexity_score += 2
+        elif year == 1:
+            complexity_score += 1
+
+        # Data-based complexity analysis
+        if sim_data:
+            if len(str(sim_data)) > 1000:  # Large data sets
+                complexity_score += 2
+            if "grant" in str(sim_data).lower():  # Grant calculations
+                complexity_score += 2
+            if "fitness" in str(sim_data).lower():  # Fitness evaluations
+                complexity_score += 1
+
+        # Classify complexity
+        if complexity_score >= 6:
+            return "complex"
+        elif complexity_score >= 3:
+            return "moderate"
+        else:
+            return "simple"
 
 # Utility function
 def run_pre_sim_validation() -> Dict[str, Any]:
