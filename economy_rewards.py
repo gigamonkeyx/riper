@@ -46,39 +46,54 @@ class SDSystem:
         }
         self.loop_history = []
 
-        # Initialize key feedback loops
-        self._initialize_feedback_loops()
+        # Initialize key feedback loops with AnyLogic-inspired hybrid approach
+        self._initialize_hybrid_feedback_loops()
 
-    def _initialize_feedback_loops(self):
-        """Initialize USDA grant feedback loops"""
-        # Reinforcing loop: Grant funding → Community impact → More grants
+    def _initialize_hybrid_feedback_loops(self):
+        """Initialize AnyLogic-inspired hybrid SD feedback loops"""
+        # Hybrid reinforcing loop: Grant funding → Community impact → More grants (with ABM influence)
         grant_impact_loop = SDFeedbackLoop(
-            loop_id="grant_impact",
+            loop_id="hybrid_grant_impact",
             loop_type="reinforcing",
-            variables=["grant_funding", "community_impact"],
-            current_state={"grant_funding": 0.5, "community_impact": 0.3},
-            feedback_strength=0.7
+            variables=["grant_funding", "community_impact", "labor_efficiency"],
+            current_state={"grant_funding": 0.5, "community_impact": 0.3, "labor_efficiency": 0.6},
+            feedback_strength=0.8  # Enhanced for hybrid model
         )
 
-        # Balancing loop: Demand → Supply capacity → Demand satisfaction
+        # Hybrid balancing loop: Demand → Supply capacity → Demand satisfaction (with DES influence)
         supply_demand_loop = SDFeedbackLoop(
-            loop_id="supply_demand",
+            loop_id="hybrid_supply_demand",
             loop_type="balancing",
-            variables=["demand_level", "supply_capacity"],
-            current_state={"demand_level": 0.8, "supply_capacity": 0.6},
-            feedback_strength=0.6
+            variables=["demand_level", "supply_capacity", "logistics_efficiency"],
+            current_state={"demand_level": 0.8, "supply_capacity": 0.6, "logistics_efficiency": 0.7},
+            feedback_strength=0.7  # Enhanced for DES integration
         )
 
-        # Reinforcing loop: Community impact → Demand level → Grant need
-        community_demand_loop = SDFeedbackLoop(
-            loop_id="community_demand",
+        # Multi-method reinforcing loop: Community impact → Demand level → Grant need (ABM+DES+SD)
+        multimethod_loop = SDFeedbackLoop(
+            loop_id="multimethod_community",
             loop_type="reinforcing",
-            variables=["community_impact", "demand_level", "grant_funding"],
-            current_state={"community_impact": 0.3, "demand_level": 0.8, "grant_funding": 0.5},
+            variables=["community_impact", "demand_level", "grant_funding", "labor_efficiency", "logistics_efficiency"],
+            current_state={
+                "community_impact": 0.3,
+                "demand_level": 0.8,
+                "grant_funding": 0.5,
+                "labor_efficiency": 0.6,
+                "logistics_efficiency": 0.7
+            },
+            feedback_strength=0.6  # Balanced for multi-method complexity
+        )
+
+        # AnyLogic-inspired stock and flow loop for resource management
+        resource_flow_loop = SDFeedbackLoop(
+            loop_id="resource_flow",
+            loop_type="balancing",
+            variables=["resource_stock", "inflow_rate", "outflow_rate"],
+            current_state={"resource_stock": 0.5, "inflow_rate": 0.3, "outflow_rate": 0.2},
             feedback_strength=0.5
         )
 
-        self.feedback_loops = [grant_impact_loop, supply_demand_loop, community_demand_loop]
+        self.feedback_loops = [grant_impact_loop, supply_demand_loop, multimethod_loop, resource_flow_loop]
 
     async def simulate_feedback_dynamics(self, grant_change: float, demand_change: float) -> Dict[str, Any]:
         """Simulate SD feedback loops with Ollama-qwen2.5 analysis"""
@@ -105,28 +120,44 @@ class SDSystem:
                     self.system_state[var] += feedback_impact * 0.1
                     self.system_state[var] = max(0.0, min(1.0, self.system_state[var]))
 
-        # Use Ollama-qwen2.5 for SD analysis
+        # Use Ollama-qwen2.5 for hybrid SD analysis with AnyLogic-inspired approach
         try:
-            sd_prompt = f"""Analyze System Dynamics feedback for USDA grants:
+            sd_prompt = f"""Analyze AnyLogic-inspired hybrid System Dynamics for USDA grants:
 Grant Change: {grant_change:.3f}
 Demand Change: {demand_change:.3f}
 System State: {self.system_state}
 Loop Impacts: {loop_impacts}
+Hybrid Factors: ABM labor efficiency, DES logistics efficiency, SD feedback loops
 
-Calculate overall system stability and recommend optimization (0.0-1.0 scale)."""
+Calculate multimethod system stability and recommend hybrid optimization (0.0-1.0 scale).
+Consider stock-and-flow dynamics and agent-based emergent behaviors."""
 
             response = ollama.chat(
                 model='qwen2.5-coder:7b',
-                messages=[{'role': 'user', 'content': sd_prompt}]
+                messages=[{
+                    'role': 'system',
+                    'content': 'You are a hybrid simulation specialist combining ABM, DES, and SD methodologies like AnyLogic.'
+                }, {
+                    'role': 'user',
+                    'content': sd_prompt
+                }]
             )
 
-            # Calculate system stability
-            stability_score = 1.0 - abs(total_system_change) * 0.5
-            stability_score = max(0.0, min(1.0, stability_score))
+            # Calculate hybrid system stability with multimethod factors
+            base_stability = 1.0 - abs(total_system_change) * 0.4  # Reduced penalty for hybrid robustness
+
+            # Apply hybrid bonuses for multimethod integration
+            hybrid_bonus = 0.0
+            if "hybrid_grant_impact" in loop_impacts:
+                hybrid_bonus += abs(loop_impacts["hybrid_grant_impact"]) * 0.1
+            if "multimethod_community" in loop_impacts:
+                hybrid_bonus += abs(loop_impacts["multimethod_community"]) * 0.15
+
+            stability_score = max(0.0, min(1.0, base_stability + hybrid_bonus))
 
         except Exception as e:
-            logger.warning(f"Ollama SD analysis failed: {e}")
-            stability_score = 0.7
+            logger.warning(f"Ollama hybrid SD analysis failed: {e}")
+            stability_score = 0.75  # Higher fallback for hybrid systems
 
         # Calculate detailed grant impact metrics
         grant_impact_percent = abs(loop_impacts.get("grant_impact", 0.0)) * 100

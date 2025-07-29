@@ -1,0 +1,159 @@
+# RIPER-Ω Hybrid System Dynamics Agent Configuration
+# AnyLogic-inspired hybrid SD tasks for grant dynamics
+# Combines ABM, DES, and SD methodologies with llama3.2:1b delegation
+
+agent_type: "hybrid-sd-coordinator"
+model: "llama3.2:1b"
+specialization: "multimethod_system_dynamics"
+priority: 2
+
+# Hybrid SD Configuration
+hybrid_sd_config:
+  methodology: "anylogic_inspired"
+  integration_methods: ["ABM", "DES", "SD"]
+  feedback_loops: 4
+  stability_threshold: 0.75
+  multimethod_bonus: 0.15
+
+# System Dynamics Components
+sd_components:
+  stocks:
+    - name: "grant_funding_stock"
+      initial_value: 150000  # USD
+      units: "dollars"
+      
+    - name: "community_impact_stock"
+      initial_value: 0.3  # 30% baseline impact
+      units: "percentage"
+      
+    - name: "labor_capacity_stock"
+      initial_value: 10  # number of bakers
+      units: "agents"
+      
+    - name: "logistics_capacity_stock"
+      initial_value: 1500  # processing units
+      units: "units_per_day"
+
+  flows:
+    - name: "grant_inflow"
+      from_stock: "external"
+      to_stock: "grant_funding_stock"
+      rate_formula: "usda_approval_rate * application_quality"
+      
+    - name: "grant_utilization_outflow"
+      from_stock: "grant_funding_stock"
+      to_stock: "community_impact_stock"
+      rate_formula: "utilization_efficiency * labor_productivity"
+      
+    - name: "skill_development_flow"
+      from_stock: "community_impact_stock"
+      to_stock: "labor_capacity_stock"
+      rate_formula: "training_rate * collaboration_efficiency"
+
+  feedback_loops:
+    - loop_id: "hybrid_grant_impact"
+      loop_type: "reinforcing"
+      variables: ["grant_funding", "community_impact", "labor_efficiency"]
+      strength: 0.8
+      
+    - loop_id: "hybrid_supply_demand"
+      loop_type: "balancing"
+      variables: ["demand_level", "supply_capacity", "logistics_efficiency"]
+      strength: 0.7
+      
+    - loop_id: "multimethod_community"
+      loop_type: "reinforcing"
+      variables: ["community_impact", "demand_level", "grant_funding", "labor_efficiency", "logistics_efficiency"]
+      strength: 0.6
+      
+    - loop_id: "resource_flow"
+      loop_type: "balancing"
+      variables: ["resource_stock", "inflow_rate", "outflow_rate"]
+      strength: 0.5
+
+# Hybrid Integration Tasks
+tasks:
+  - task_id: "sd_feedback_analysis"
+    description: "Analyze system dynamics feedback loops"
+    model_delegation: "llama3.2:1b"
+    priority: 1
+    estimated_time: 8  # minutes
+    hybrid_methods: ["SD", "ABM"]
+    
+  - task_id: "stock_flow_calculation"
+    description: "Calculate stock and flow dynamics"
+    model_delegation: "llama3.2:1b"
+    priority: 1
+    estimated_time: 6
+    hybrid_methods: ["SD"]
+    
+  - task_id: "multimethod_optimization"
+    description: "Optimize across ABM/DES/SD methods"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 12
+    hybrid_methods: ["ABM", "DES", "SD"]
+    
+  - task_id: "grant_impact_modeling"
+    description: "Model USDA grant impacts on community"
+    model_delegation: "llama3.2:1b"
+    priority: 1
+    estimated_time: 10
+    hybrid_methods: ["SD", "ABM"]
+    
+  - task_id: "system_stability_assessment"
+    description: "Assess overall system stability"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 7
+    hybrid_methods: ["SD"]
+
+# AnyLogic-Inspired Features
+anylogic_features:
+  agent_based_modeling: true
+  discrete_event_simulation: true
+  system_dynamics: true
+  hybrid_modeling: true
+  stock_and_flow: true
+  state_charts: false  # Not implemented yet
+  
+# Performance Metrics
+metrics:
+  - name: "system_stability"
+    description: "Overall system stability score"
+    target: 0.85
+    
+  - name: "feedback_loop_strength"
+    description: "Average feedback loop strength"
+    target: 0.7
+    
+  - name: "multimethod_integration"
+    description: "Integration effectiveness across methods"
+    target: 0.8
+    
+  - name: "grant_utilization_efficiency"
+    description: "Efficiency of grant fund utilization"
+    target: 0.9
+
+# Integration Settings
+integration:
+  mesa_abm_coordination: true    # Coordinate with Mesa ABM agents
+  simpy_des_coordination: true   # Coordinate with SimPy DES events
+  evotorch_optimization: true    # Use evotorch for hybrid optimization
+  ollama_analysis: true          # Use Ollama for SD analysis
+  
+# Research Configuration
+research_config:
+  academic_validation: true
+  literature_based: true
+  supply_chain_focus: true
+  sme_optimization: true  # Small-medium enterprise focus
+  efficiency_target: 0.25  # 25% efficiency improvement target
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  factual_reporting: true
+  hybrid_metrics_tracking: true
+  multimethod_alerts: true
+  anylogic_compatibility: true

@@ -19,6 +19,7 @@ import asyncio
 import aiohttp
 import queue
 import threading
+import simpy
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -61,12 +62,11 @@ class DonationEvent:
         return (self.priority, self.timestamp) < (other.priority, other.timestamp)
 
 
-class DESLogisticsSystem:
-    """Discrete Event Simulation for grain donation logistics"""
+class SimPyDESLogistics:
+    """SimPy-based Discrete Event Simulation for grain donation logistics"""
 
     def __init__(self):
-        self.event_queue = queue.PriorityQueue()
-        self.current_time = 0.0
+        self.env = simpy.Environment()
         self.processed_events = []
         self.throughput_metrics = {
             "total_donations": 0,
@@ -74,91 +74,115 @@ class DESLogisticsSystem:
             "avg_processing_time": 0.0,
             "queue_efficiency": 0.0
         }
+        self.donation_sources = {}
+        self.processing_facilities = {}
 
-    def add_donation_event(self, source: str, destination: str, quantity: float, delay: float = 0.0):
-        """Add grain donation event to DES queue"""
-        event_id = f"{source}_{destination}_{int(time.time())}"
-        event = DonationEvent(
-            event_id=event_id,
-            event_type=DonationEventType.GRAIN_ARRIVAL,
-            timestamp=self.current_time + delay,
-            source=source,
-            destination=destination,
-            quantity=quantity
-        )
-        self.event_queue.put(event)
-        logger.info(f"DES: Added donation event {event_id} from {source} to {destination}")
+    def setup_facilities(self):
+        """Setup SimPy resources for donation processing"""
+        # Create processing facilities with capacity limits
+        self.processing_facilities = {
+            "Pie Factory": simpy.Resource(self.env, capacity=2),
+            "Food Bank": simpy.Resource(self.env, capacity=3),
+            "School Kitchen": simpy.Resource(self.env, capacity=1)
+        }
 
-    async def process_donation_queue(self, max_events: int = 10) -> Dict[str, Any]:
-        """Process donation events using llama3.2:1b for lightweight logistics"""
-        processed_count = 0
-        total_processing_time = 0.0
+        # Create donation source stores
+        self.donation_sources = {
+            "Bluebird Farm": simpy.Store(self.env, capacity=1000),
+            "Okanogan Valley Grains": simpy.Store(self.env, capacity=800),
+            "Community Gardens": simpy.Store(self.env, capacity=300)
+        }
 
-        while not self.event_queue.empty() and processed_count < max_events:
-            try:
-                event = self.event_queue.get_nowait()
-                start_time = time.time()
+    def grain_donation_process(self, source: str, destination: str, quantity: float):
+        """SimPy process for grain donation logistics"""
+        start_time = self.env.now
+
+        try:
+            # Request processing facility
+            facility = self.processing_facilities[destination]
+            with facility.request() as request:
+                yield request
+
+                # Simulate processing time based on quantity
+                processing_time = quantity * 0.1  # 0.1 time units per unit
+                yield self.env.timeout(processing_time)
 
                 # Use llama3.2:1b for lightweight logistics processing
-                logistics_prompt = f"""Process grain donation logistics:
-Source: {event.source}
-Destination: {event.destination}
-Quantity: {event.quantity} units
-Event Type: {event.event_type.value}
-
-Calculate processing efficiency (0.0-1.0) and estimated completion time."""
-
                 try:
                     import ollama
+                    logistics_prompt = f"""Process SimPy grain donation:
+Source: {source}
+Destination: {destination}
+Quantity: {quantity} units
+Processing time: {processing_time:.2f}
+
+Calculate efficiency and throughput metrics."""
+
                     response = ollama.chat(
                         model='llama3.2:1b',
                         messages=[{'role': 'user', 'content': logistics_prompt}]
                     )
 
-                    # Simulate processing based on quantity
-                    processing_time = event.quantity * 0.1  # 0.1 time units per unit
-                    efficiency = min(1.0, 0.8 + (event.quantity / 1000))  # Scale efficiency
+                    efficiency = min(1.0, 0.8 + (quantity / 1000))
 
                 except Exception as e:
                     logger.warning(f"Ollama logistics processing failed: {e}")
-                    processing_time = event.quantity * 0.15
-                    efficiency = 0.7
+                    efficiency = 0.8
+
+                # Record processed event
+                total_time = self.env.now - start_time
+                self.processed_events.append({
+                    "source": source,
+                    "destination": destination,
+                    "quantity": quantity,
+                    "processing_time": processing_time,
+                    "total_time": total_time,
+                    "efficiency": efficiency,
+                    "start_time": start_time,
+                    "end_time": self.env.now
+                })
 
                 # Update metrics
                 self.throughput_metrics["total_donations"] += 1
-                self.throughput_metrics["processed_units"] += event.quantity
-                total_processing_time += processing_time
+                self.throughput_metrics["processed_units"] += quantity
 
-                # Log processed event
-                self.processed_events.append({
-                    "event_id": event.event_id,
-                    "source": event.source,
-                    "destination": event.destination,
-                    "quantity": event.quantity,
-                    "processing_time": processing_time,
-                    "efficiency": efficiency
-                })
+                logger.info(f"SimPy DES: Processed {quantity} units from {source} to {destination} in {total_time:.2f} time units")
 
-                processed_count += 1
-                self.current_time += processing_time
+        except KeyError as e:
+            logger.error(f"Unknown facility or source: {e}")
+        except Exception as e:
+            logger.error(f"SimPy process error: {e}")
 
-            except queue.Empty:
-                break
+    async def run_simpy_simulation(self, donations: List[Dict[str, Any]], simulation_time: float = 100.0) -> Dict[str, Any]:
+        """Run SimPy simulation with grain donations"""
+        self.setup_facilities()
 
-        # Calculate final metrics with detailed grain throughput
+        # Schedule donation processes
+        for i, donation in enumerate(donations):
+            self.env.process(self.grain_donation_process(
+                donation["source"],
+                donation["destination"],
+                donation["quantity"]
+            ))
+
+        # Run simulation
+        self.env.run(until=simulation_time)
+
+        # Calculate final metrics
+        processed_count = len(self.processed_events)
         if processed_count > 0:
+            total_processing_time = sum(e["processing_time"] for e in self.processed_events)
             self.throughput_metrics["avg_processing_time"] = total_processing_time / processed_count
-            self.throughput_metrics["queue_efficiency"] = sum(e["efficiency"] for e in self.processed_events[-processed_count:]) / processed_count
+            self.throughput_metrics["queue_efficiency"] = sum(e["efficiency"] for e in self.processed_events) / processed_count
 
             # Calculate detailed throughput metrics
-            grain_tons_per_day = (self.throughput_metrics["processed_units"] / 1000) * 24  # Convert to tons/day
-            processing_rate = self.throughput_metrics["processed_units"] / max(1, self.current_time)  # Units per time
+            grain_tons_per_day = (self.throughput_metrics["processed_units"] / 1000) * 24
+            processing_rate = self.throughput_metrics["processed_units"] / max(1, self.env.now)
 
-            # Log detailed DES metrics
-            logger.info(f"Metrics: DES throughput {grain_tons_per_day:.2f} tons/day, "
-                       f"processing rate {processing_rate:.1f} units/hour, "
-                       f"queue efficiency {self.throughput_metrics['queue_efficiency']:.1f}%. "
-                       f"Fitness impact: {self.throughput_metrics['queue_efficiency']:.3f}")
+            # Log detailed SimPy DES metrics
+            logger.info(f"DES: Queues {processed_count}/{len(donations)} processed. "
+                       f"Throughput: {self.throughput_metrics['processed_units']:.1f} units. "
+                       f"Perf: {self.throughput_metrics['avg_processing_time']:.2f} seconds")
 
         return {
             "processed_events": processed_count,
@@ -167,8 +191,22 @@ Calculate processing efficiency (0.0-1.0) and estimated completion time."""
             "processing_rate": processing_rate if processed_count > 0 else 0.0,
             "avg_processing_time": self.throughput_metrics["avg_processing_time"],
             "queue_efficiency": self.throughput_metrics["queue_efficiency"],
-            "current_time": self.current_time
+            "simulation_time": self.env.now,
+            "facility_utilization": self._calculate_facility_utilization()
         }
+
+    def _calculate_facility_utilization(self) -> Dict[str, float]:
+        """Calculate facility utilization rates"""
+        utilization = {}
+        for facility_name, facility in self.processing_facilities.items():
+            # Calculate utilization based on processed events
+            facility_events = [e for e in self.processed_events if e["destination"] == facility_name]
+            if facility_events:
+                total_busy_time = sum(e["processing_time"] for e in facility_events)
+                utilization[facility_name] = min(1.0, total_busy_time / max(1, self.env.now))
+            else:
+                utilization[facility_name] = 0.0
+        return utilization
 
 
 class AsyncSubAgentCoordinator:

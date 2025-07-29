@@ -12,105 +12,142 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from evo_core import NeuroEvolutionEngine  # Assuming import from evo_core.py
 import ollama
+from mesa import Agent, Model, DataCollector
+from mesa.space import MultiGrid
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class BakerAgent:
-    """ABM agent for bakers labor with emergent behaviors"""
-    agent_id: int
-    skill_level: float = 0.7  # 0.0-1.0 skill rating
-    availability: float = 0.8  # 0.0-1.0 availability
-    productivity: float = 0.6  # Base productivity
-    location: str = "Tonasket"
-    specialization: str = "general"  # general, artisan, commercial
+class MesaBakerAgent(Agent):
+    """Mesa-based ABM agent for bakers labor with emergent behaviors"""
 
-    def interact_with_agent(self, other_agent: 'BakerAgent') -> Dict[str, float]:
-        """Emergent behavior through agent interactions"""
+    def __init__(self, unique_id, model):
+        super().__init__(model)
+        self.unique_id = unique_id
+        self.skill_level = random.uniform(0.4, 0.9)
+        self.availability = random.uniform(0.6, 1.0)
+        self.productivity = random.uniform(0.5, 0.8)
+        self.location = "Tonasket"
+        self.specialization = random.choice(["general", "artisan", "commercial"])
+        self.interaction_count = 0
+        self.collaboration_history = []
+
+    def step(self):
+        """Mesa agent step function for emergent behaviors"""
+        # Find nearby agents for interaction
+        neighbors = self.model.grid.get_neighbors(
+            self.pos, moore=True, include_center=False, radius=2
+        )
+
+        if neighbors:
+            # Select random neighbor for interaction
+            other_agent = random.choice(neighbors)
+            if isinstance(other_agent, MesaBakerAgent):
+                self.interact_with_agent(other_agent)
+
+    def interact_with_agent(self, other_agent: 'MesaBakerAgent') -> Dict[str, float]:
+        """Emergent behavior through Mesa agent interactions"""
         skill_transfer = min(0.1, abs(self.skill_level - other_agent.skill_level) * 0.2)
         productivity_boost = skill_transfer * 0.5
+        collaboration_score = (self.skill_level + other_agent.skill_level) / 2
 
-        return {
+        # Update both agents
+        self.skill_level = min(1.0, self.skill_level + skill_transfer)
+        self.productivity = min(1.0, self.productivity + productivity_boost)
+        other_agent.skill_level = min(1.0, other_agent.skill_level + skill_transfer)
+        other_agent.productivity = min(1.0, other_agent.productivity + productivity_boost)
+
+        # Track interaction
+        interaction_result = {
             "skill_transfer": skill_transfer,
             "productivity_boost": productivity_boost,
-            "collaboration_score": (self.skill_level + other_agent.skill_level) / 2
+            "collaboration_score": collaboration_score
         }
 
-    def update_from_interaction(self, interaction_result: Dict[str, float]):
-        """Update agent state based on interactions"""
-        self.skill_level = min(1.0, self.skill_level + interaction_result["skill_transfer"])
-        self.productivity = min(1.0, self.productivity + interaction_result["productivity_boost"])
+        self.collaboration_history.append(interaction_result)
+        other_agent.collaboration_history.append(interaction_result)
+        self.interaction_count += 1
+        other_agent.interaction_count += 1
+
+        return interaction_result
 
 
-@dataclass
-class ABMSystem:
-    """Agent-Based Modeling system for labor aggregation"""
-    agents: List[BakerAgent]
-    interaction_history: List[Dict[str, Any]]
+class MesaBakeryModel(Model):
+    """Mesa-based ABM model for baker labor aggregation"""
 
-    def __init__(self, num_agents: int = 10):
-        self.agents = []
-        self.interaction_history = []
+    def __init__(self, num_agents: int = 10, width: int = 10, height: int = 10):
+        super().__init__()
+        self.num_agents = num_agents
+        self.grid = MultiGrid(width, height, True)
 
-        # Create diverse baker agents
-        specializations = ["general", "artisan", "commercial"]
-        for i in range(num_agents):
-            agent = BakerAgent(
-                agent_id=i,
-                skill_level=random.uniform(0.4, 0.9),
-                availability=random.uniform(0.6, 1.0),
-                productivity=random.uniform(0.5, 0.8),
-                specialization=random.choice(specializations)
-            )
-            self.agents.append(agent)
+        # Create baker agents using Mesa 3.0+ proper registration
+        for i in range(self.num_agents):
+            agent = MesaBakerAgent(i, self)
 
-    async def simulate_emergent_behaviors(self) -> Dict[str, Any]:
-        """Simulate emergent behaviors through agent interactions"""
-        interactions = 0
-        total_collaboration = 0.0
+            # Register agent with Mesa's built-in system
+            self.register_agent(agent)
+
+            # Place agent randomly on grid
+            x = random.randrange(self.grid.width)
+            y = random.randrange(self.grid.height)
+            self.grid.place_agent(agent, (x, y))
+
+        # Data collection for metrics using Mesa 3.0+ built-in agents
+        self.datacollector = DataCollector(
+            model_reporters={
+                "Total Agents": lambda m: len(m.agents),
+                "Avg Skill Level": lambda m: sum(a.skill_level for a in m.agents) / len(m.agents) if m.agents else 0,
+                "Avg Productivity": lambda m: sum(a.productivity for a in m.agents) / len(m.agents) if m.agents else 0,
+                "Total Interactions": lambda m: sum(a.interaction_count for a in m.agents),
+                "High Skill Agents": lambda m: len([a for a in m.agents if a.skill_level > 0.8])
+            }
+        )
+
+        self.running = True
+        self.datacollector.collect(self)
+
+    def step(self):
+        """Mesa model step function using built-in agents"""
+        for agent in self.agents:
+            agent.step()
+        self.datacollector.collect(self)
+
+    async def simulate_emergent_behaviors(self, steps: int = 5) -> Dict[str, Any]:
+        """Simulate emergent behaviors through Mesa model steps"""
+        # Run simulation steps
+        for _ in range(steps):
+            self.step()
+
+        # Collect final metrics
+        model_data = self.datacollector.get_model_vars_dataframe()
+        latest_data = model_data.iloc[-1] if not model_data.empty else {}
+
+        # Calculate detailed cooperation metrics using Mesa built-in agents
+        total_interactions = int(latest_data.get("Total Interactions", 0))
+        agents = list(self.agents)  # Convert AgentSet to list
+
+        # Calculate collaboration metrics from agent histories
+        all_collaborations = []
         skill_improvements = 0
 
-        # Random agent interactions
-        for _ in range(len(self.agents) // 2):
-            agent1 = random.choice(self.agents)
-            agent2 = random.choice([a for a in self.agents if a.agent_id != agent1.agent_id])
+        for agent in agents:
+            if agent.collaboration_history:
+                all_collaborations.extend(agent.collaboration_history)
+                skill_improvements += len([h for h in agent.collaboration_history if h["skill_transfer"] > 0.05])
 
-            interaction_result = agent1.interact_with_agent(agent2)
-
-            # Update both agents
-            agent1.update_from_interaction(interaction_result)
-            agent2.update_from_interaction(interaction_result)
-
-            # Track metrics
-            interactions += 1
-            total_collaboration += interaction_result["collaboration_score"]
-            if interaction_result["skill_transfer"] > 0.05:
-                skill_improvements += 1
-
-            # Log interaction
-            self.interaction_history.append({
-                "agent1_id": agent1.agent_id,
-                "agent2_id": agent2.agent_id,
-                "collaboration_score": interaction_result["collaboration_score"],
-                "skill_transfer": interaction_result["skill_transfer"]
-            })
-
-        # Calculate detailed cooperation metrics
-        cooperation_rate = (skill_improvements / max(1, interactions)) * 100
-        high_skill_agents = len([a for a in self.agents if a.skill_level > 0.8])
-        collaboration_efficiency = (total_collaboration / max(1, interactions)) * 100
+        cooperation_rate = (skill_improvements / max(1, len(all_collaborations))) * 100 if all_collaborations else 0
+        collaboration_efficiency = (sum(c["collaboration_score"] for c in all_collaborations) / max(1, len(all_collaborations))) * 100 if all_collaborations else 0
 
         return {
-            "total_interactions": interactions,
-            "avg_collaboration": total_collaboration / max(1, interactions),
+            "total_interactions": total_interactions,
+            "avg_collaboration": sum(c["collaboration_score"] for c in all_collaborations) / max(1, len(all_collaborations)) if all_collaborations else 0,
             "skill_improvements": skill_improvements,
-            "cooperation_rate": cooperation_rate,  # Detailed metric
-            "collaboration_efficiency": collaboration_efficiency,  # Detailed metric
-            "high_skill_agents": high_skill_agents,  # Detailed metric
-            "total_agents": len(self.agents),
-            "avg_skill_level": sum(a.skill_level for a in self.agents) / len(self.agents),
-            "avg_productivity": sum(a.productivity for a in self.agents) / len(self.agents)
+            "cooperation_rate": cooperation_rate,
+            "collaboration_efficiency": collaboration_efficiency,
+            "high_skill_agents": int(latest_data.get("High Skill Agents", 0)),
+            "total_agents": int(latest_data.get("Total Agents", self.num_agents)),
+            "avg_skill_level": float(latest_data.get("Avg Skill Level", 0)),
+            "avg_productivity": float(latest_data.get("Avg Productivity", 0))
         }
 
 
@@ -128,7 +165,7 @@ class UnderservedGrantModel:
     def __init__(self, config: SimConfig):
         self.config = config
         self.current_funding = config.initial_funding
-        self.abm_system = ABMSystem(num_agents=10)  # Initialize ABM with 10 baker agents
+        self.mesa_model = MesaBakeryModel(num_agents=10)  # Initialize Mesa ABM with 10 baker agents
         self.abm_metrics = []
 
     def apply_grant(self, grant_amount: float) -> bool:
@@ -144,8 +181,8 @@ class UnderservedGrantModel:
         grant_amount = random.uniform(50000, 200000)  # Example grant range
         success = self.apply_grant(grant_amount)
 
-        # ABM: Simulate emergent baker labor behaviors
-        abm_results = await self.abm_system.simulate_emergent_behaviors()
+        # Mesa ABM: Simulate emergent baker labor behaviors
+        abm_results = await self.mesa_model.simulate_emergent_behaviors()
         self.abm_metrics.append(abm_results)
 
         # Use Ollama-qwen2.5 for labor efficiency analysis
