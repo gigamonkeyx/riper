@@ -1,0 +1,153 @@
+# B2B Take-Back Donation Sub-Agent Configuration
+name: "take-back"
+description: "Process B2B return credits with tax deductions and cost basis calculations"
+task: "Process B2B return credits"
+model: "qwen2.5-coder:7b"
+specialization: "tax_deduction_calculation"
+
+# Task-specific parameters
+parameters:
+  processing_types:
+    - "return_intake"
+    - "tax_calculation"
+    - "donation_conversion"
+    - "cost_basis_analysis"
+  
+  entity_types:
+    - "c_corp"
+    - "llc" 
+    - "gov_entity"
+  
+  pricing_structure:
+    full_cost_basis: 3.0      # $3/pie full cost basis
+    enhanced_deduction: 4.0   # $4/pie enhanced deduction for C corps/LLCs
+    government_refund: 5.0    # $5/pie full refund for government entities
+  
+  return_rates:
+    corp_llc_rate: 0.10      # 10% return rate for C corps/LLCs (tax incentives)
+    government_rate: 0.20    # 20% return rate for government (no tax benefit)
+
+  # Outreach blending parameters (CORRECTED)
+  outreach_integration:
+    milling_day_boost: 0.20   # 20% increase in returns during milling days
+    admin_efficiency: 0.10    # $0.10/pie admin efficiency (not material savings - pies are trash)
+    community_multiplier: 1.05  # 5% bonus for community engagement
+    priority_processing: true   # Priority processing during outreach events
+    disposal_cost_per_pie: 0.50  # $0.50 disposal cost per returned pie (trash)
+
+  timeout: 180
+  max_retries: 3
+
+# Ollama-specific settings
+ollama_config:
+  temperature: 0.3
+  max_tokens: 2048
+  context_window: 8192
+
+# Performance targets
+targets:
+  processing_time_max: 60    # seconds
+  accuracy_threshold: 0.95
+  daily_throughput_min: 100  # returns per day
+
+# Tasks
+tasks:
+  - task_id: "return_processing"
+    description: "Process B2B pie returns and calculate tax implications"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 20  # minutes
+    
+  - task_id: "tax_deduction_calc"
+    description: "Calculate tax deductions based on entity type and cost basis"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 15
+    
+  - task_id: "donation_conversion"
+    description: "Convert returns to donation credits for non-profit capital"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 2
+    estimated_time: 10
+    
+  - task_id: "spoilage_analysis"
+    description: "Analyze spoilage impact on donation efficiency"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 2
+    estimated_time: 12
+
+  # Outreach blending tasks (NEW)
+  - task_id: "milling_day_coordination"
+    description: "Coordinate B2B returns during milling day events"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 15
+    outreach_integration: true
+
+  - task_id: "disposal_coordination"
+    description: "Coordinate proper disposal of returned pies (trash) with cost tracking"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 2
+    estimated_time: 10
+    outreach_integration: true
+
+  - task_id: "community_benefit_calculation"
+    description: "Calculate community benefit multipliers for outreach events"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 2
+    estimated_time: 8
+    outreach_integration: true
+
+# Entity-specific configurations
+entity_configs:
+  c_corp:
+    tax_benefit: true
+    deduction_multiplier: 1.33  # $4/$3 = 1.33x cost basis
+    return_incentive: "enhanced_deduction"
+    
+  llc:
+    tax_benefit: true
+    deduction_multiplier: 1.33  # $4/$3 = 1.33x cost basis
+    return_incentive: "enhanced_deduction"
+    
+  gov_entity:
+    tax_benefit: false
+    deduction_multiplier: 1.67  # $5/$3 = 1.67x cost basis (refund)
+    return_incentive: "full_refund"
+
+# Metrics tracking
+metrics:
+  - name: "daily_donation_flow"
+    target: 75.0  # $75/day target
+    unit: "dollars"
+    
+  - name: "return_rate"
+    target: 0.15  # 15% average return rate
+    unit: "percentage"
+    
+  - name: "spoilage_rate"
+    target: 0.017  # 1.7% spoilage rate
+    unit: "percentage"
+    
+  - name: "processing_efficiency"
+    target: 0.90  # 90% processing efficiency
+    unit: "percentage"
+
+# Integration settings
+integration:
+  economy_rewards: true
+  simpy_des: true
+  mesa_abm: true
+  evotorch_pgpe: true
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "factual"
+  include_metrics: true
+  
+# Seasonal adjustments
+seasonal_focus:
+  peak_months: ["November", "December"]  # Holiday return season
+  frequency_boost: 1.2  # 20% more returns during peak
+  processing_boost: 1.1  # 10% faster processing during peak

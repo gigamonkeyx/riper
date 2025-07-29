@@ -174,21 +174,59 @@ class GitSyncManager:
         logger.info(f"Git sync complete - Commit: {final_commit}, Files: {self.sync_results['files_changed']}")
         return self.sync_results
 
+    def log_commit_status(self, reference_commit: str = "329d632") -> Dict[str, Any]:
+        """Log new commit hash post-reference commit for Observer tracking"""
+        current_commit = self.get_current_commit()
+
+        # Get commit count since reference
+        count_result = self.run_git_command(["git", "rev-list", "--count", f"{reference_commit}..HEAD"])
+        commits_since = int(count_result["stdout"]) if count_result["success"] and count_result["stdout"].isdigit() else 0
+
+        # Get changed files since reference
+        diff_result = self.run_git_command(["git", "diff", "--name-only", f"{reference_commit}..HEAD"])
+        changed_files = diff_result["stdout"].split('\n') if diff_result["success"] and diff_result["stdout"] else []
+        files_changed = len([f for f in changed_files if f.strip()])
+
+        # Determine status
+        if current_commit and current_commit != reference_commit:
+            status = "Pushed" if commits_since > 0 else "Current"
+        else:
+            status = "No changes"
+
+        commit_info = {
+            "current_commit": current_commit,
+            "reference_commit": reference_commit,
+            "commits_since_reference": commits_since,
+            "files_changed": files_changed,
+            "changed_files": changed_files,
+            "status": status
+        }
+
+        # Log factually as requested by Observer
+        logger.info(f"Commit: Hash {current_commit}. Files: {files_changed} changed. Status: {status}")
+
+        return commit_info
+
 def main():
     """Main sync execution"""
     sync_manager = GitSyncManager()
     
     try:
         results = sync_manager.sync_repository()
-        
+
+        # Log commit status post-329d632 as requested by Observer
+        commit_info = sync_manager.log_commit_status("329d632")
+
         # Log results factually
         if results["pull_status"] == "success" and results["push_status"] == "success":
             logger.info(f"Git sync: Success. Commit: {results['commit_hash']}")
             print(f"SUCCESS: Git sync completed - Commit {results['commit_hash']}")
+            print(f"Post-329d632: {commit_info['commits_since_reference']} commits, {commit_info['files_changed']} files changed")
             return 0
         elif results["push_status"] == "success" and results["pull_status"] == "not_needed":
             logger.info(f"Git sync: Success. Commit: {results['commit_hash']}")
             print(f"SUCCESS: Git push completed - Commit {results['commit_hash']}")
+            print(f"Post-329d632: {commit_info['commits_since_reference']} commits, {commit_info['files_changed']} files changed")
             return 0
         else:
             logger.error(f"Git sync: Failure. Pull: {results['pull_status']}, Push: {results['push_status']}")
