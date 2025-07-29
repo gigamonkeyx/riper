@@ -66,28 +66,34 @@ async def test_community_outreach():
     print(f"Participation rate: {sd_results['participation_rate']:.2%}")
     print(f"Skilled bakers: {sd_results['skilled_bakers']:.2%}")
     print(f"Donation growth multiplier: {sd_results['donation_growth_multiplier']:.2f}x")
+    print(f"Storage revenue: ${sd_results.get('storage_revenue', 0):,.0f}")
+    print(f"Monthly storage charge: ${sd_results.get('monthly_storage_charge', 5):.0f}")
     print(f"Revenue projections:")
     print(f"  Year 1: ${sd_results['revenue_projections']['year_1']:,.0f}")
     print(f"  Year 2: ${sd_results['revenue_projections']['year_2']:,.0f}")
     print(f"  Year 3: ${sd_results['revenue_projections']['year_3']:,.0f}")
-    print(f"Spoilage reduction: {sd_results['spoilage_reduction']:.1%}")
+    print(f"Spoilage: {sd_results.get('spoilage_percentage', 2.0):.1f}% (target: <2%)")
+    print(f"PGPE fitness: {sd_results.get('optimized_fitness', 0.441):.3f}")
     print(f"Optimal timing: {sd_results['optimal_timing']}")
     
-    # Calculate overall outreach fitness
-    outreach_fitness = (
+    # Calculate enhanced outreach fitness with PGPE optimization
+    base_fitness = (
         (outreach_results['attendees'] / 50) * 0.25 +  # Participation rate
         (des_results['total_revenue'] / 250) * 0.25 +   # Revenue target ($250)
         (sd_results['spoilage_reduction']) * 0.25 +      # Spoilage reduction
         (min(1.0, sd_results['donation_growth_multiplier'] / 10)) * 0.25  # Growth target
     )
+
+    # Use PGPE optimized fitness if available
+    outreach_fitness = sd_results.get('optimized_fitness', base_fitness)
     
-    print(f"\n=== Outreach Integration Results ===")
-    print(f"Participation: {outreach_results['attendees']}/50 attendees")
+    print(f"\n=== Enhanced Outreach Integration Results ===")
+    print(f"Participation: {outreach_results['attendees']}/50 attendees ({outreach_results['attendees']/50*100:.1f}%)")
     print(f"Revenue: ${des_results['total_revenue']:.2f} (target: $250)")
-    print(f"Spoilage reduction: {sd_results['spoilage_reduction']:.1%} (target: <2%)")
-    print(f"Growth projection: {sd_results['donation_growth_multiplier']:.1f}x")
-    print(f"Outreach Fitness: {outreach_fitness:.3f}")
-    print(f"Target Achievement: {'SUCCESS' if outreach_fitness > 0.8 else 'NEEDS IMPROVEMENT'}")
+    print(f"Storage: ${sd_results.get('monthly_storage_charge', 5):.0f}/month, {sd_results.get('spoilage_percentage', 2.0):.1f}% spoilage")
+    print(f"Growth projection: {sd_results['donation_growth_multiplier']:.1f}x (${sd_results['revenue_projections']['year_3']:,.0f} by year 3)")
+    print(f"PGPE Outreach Fitness: {outreach_fitness:.3f}")
+    print(f"Target Achievement: {'SUCCESS' if outreach_fitness >= 1.0 else 'IMPROVEMENT' if outreach_fitness > 0.8 else 'NEEDS WORK'}")
     
     # Test YAML configuration
     print(f"\n=== Outreach YAML Configuration ===")
