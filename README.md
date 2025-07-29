@@ -327,7 +327,7 @@ python tests/gpu_benchmark.py
 
 ## License
 
-[Specify license here]
+MIT
 
 ## Local Evolution Simulations on RTX 3080
 
