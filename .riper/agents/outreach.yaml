@@ -1,0 +1,179 @@
+# RIPER-Ω Community Outreach Agent Configuration
+# Community lessons and milling day coordination
+# Uses qwen2.5-coder:7b for outreach optimization and llama3.2:1b for event delegation
+
+agent_type: "community-outreach-coordinator"
+model: "qwen2.5-coder:7b"
+specialization: "community_engagement_scaling"
+priority: 2
+
+# Outreach Configuration
+outreach_config:
+  base_signup_fee: 5.0  # $5 per milling day signup
+  target_participation: 50  # 50 adults/kids per event
+  event_frequency: 12  # Monthly events (July/August focus)
+  skill_conversion_rate: 0.2  # 20% become skilled bakers
+  donation_growth_target: 1.2  # 20% annual increase
+
+# Community Events
+events:
+  - name: "milling_day"
+    description: "Grain milling lessons and group buys"
+    capacity: 10  # 10 slots per day
+    duration: 4  # 4 hours
+    fee: 5.0
+    materials: ["grain_mill", "storage_jars", "grain_samples"]
+    skills_taught: ["grain_milling", "storage_techniques", "group_buying"]
+    
+  - name: "baking_class"
+    description: "Community baking lessons with local ingredients"
+    capacity: 20  # 20 participants
+    duration: 3  # 3 hours
+    fee: 10.0
+    materials: ["flour", "yeast", "baking_tools", "recipe_cards"]
+    skills_taught: ["bread_baking", "pie_making", "local_ingredients"]
+    
+  - name: "canning_workshop"
+    description: "Food preservation and storage techniques"
+    capacity: 15  # 15 participants
+    duration: 5  # 5 hours
+    fee: 15.0
+    materials: ["canning_jars", "lids", "pressure_canner", "fresh_produce"]
+    skills_taught: ["food_preservation", "safety_protocols", "storage_optimization"]
+
+# Participant Demographics
+participants:
+  adults:
+    percentage: 60
+    skill_range: [0.2, 0.8]
+    donation_capacity: [10.0, 50.0]
+    
+  children:
+    percentage: 25
+    skill_range: [0.1, 0.4]
+    donation_capacity: [0.0, 10.0]
+    
+  families:
+    percentage: 15
+    skill_range: [0.3, 0.7]
+    donation_capacity: [20.0, 100.0]
+
+# Revenue Projections
+revenue_model:
+  baseline_donations: 5000  # $5K/year baseline
+  year_1_target: 6000      # 20% increase
+  year_2_target: 12000     # 100% increase (skilled baker impact)
+  year_3_target: 50000     # 10x growth target
+  
+  revenue_sources:
+    - source: "milling_day_fees"
+      monthly: 50  # $5 x 10 participants
+      annual: 600
+      
+    - source: "baking_class_fees"
+      monthly: 200  # $10 x 20 participants
+      annual: 2400
+      
+    - source: "canning_workshop_fees"
+      monthly: 225  # $15 x 15 participants
+      annual: 2700
+      
+    - source: "increased_donations"
+      multiplier: 1.2  # 20% annual growth
+      compound: true
+
+# Tasks
+tasks:
+  - task_id: "event_coordination"
+    description: "Coordinate community lessons and milling days"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 15  # minutes
+    
+  - task_id: "signup_processing"
+    description: "Process event signups and group buy coordination"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 5
+    
+  - task_id: "skill_tracking"
+    description: "Track participant skill development and progression"
+    model_delegation: "llama3.2:1b"
+    priority: 2
+    estimated_time: 8
+    
+  - task_id: "revenue_optimization"
+    description: "Optimize event timing and fee structure"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 12
+    
+  - task_id: "donation_growth_analysis"
+    description: "Analyze donation growth patterns and projections"
+    model_delegation: "qwen2.5-coder:7b"
+    priority: 1
+    estimated_time: 10
+
+# Performance Metrics
+metrics:
+  - name: "participation_rate"
+    description: "Percentage of community participating in events"
+    target: 0.3  # 30% community participation
+    
+  - name: "skill_conversion"
+    description: "Rate of participants becoming skilled bakers"
+    target: 0.2  # 20% conversion rate
+    
+  - name: "revenue_growth"
+    description: "Annual revenue growth rate"
+    target: 1.2  # 20% annual growth
+    
+  - name: "spoilage_reduction"
+    description: "Reduction in food spoilage through better storage"
+    target: 0.98  # <2% spoilage rate
+    
+  - name: "donation_multiplier"
+    description: "Multiplier effect on baseline donations"
+    target: 10.0  # 10x growth by year 3
+
+# Seasonal Optimization
+seasonal_focus:
+  peak_months: ["July", "August"]  # Harvest season focus
+  frequency_boost: 1.5  # 50% more events during peak
+  participation_boost: 1.3  # 30% higher participation
+  
+# Group Buy Coordination
+group_buys:
+  - item: "grain_mills"
+    bulk_discount: 0.15  # 15% savings
+    minimum_order: 5
+    
+  - item: "canning_supplies"
+    bulk_discount: 0.12  # 12% savings
+    minimum_order: 10
+    
+  - item: "storage_containers"
+    bulk_discount: 0.10  # 10% savings
+    minimum_order: 20
+
+# Integration Settings
+integration:
+  mesa_abm_coordination: true     # Coordinate with Mesa community participants
+  simpy_des_coordination: true    # Coordinate with SimPy signup queues
+  sd_feedback_loops: true         # Provide data to SD outreach loops
+  evotorch_optimization: true     # Use evotorch for event timing optimization
+  
+# Research Focus
+research_config:
+  non_profit_scaling: true
+  community_hub_model: true
+  skill_development_tracking: true
+  revenue_diversification: true
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  factual_reporting: true
+  participation_tracking: true
+  revenue_monitoring: true
+  skill_progression_alerts: true

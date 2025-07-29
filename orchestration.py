@@ -19,6 +19,7 @@ import asyncio
 import aiohttp
 import queue
 import threading
+import random
 import simpy
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -63,7 +64,7 @@ class DonationEvent:
 
 
 class SimPyDESLogistics:
-    """SimPy-based Discrete Event Simulation for grain donation logistics"""
+    """SimPy-based Discrete Event Simulation for grain donation logistics and community outreach"""
 
     def __init__(self):
         self.env = simpy.Environment()
@@ -76,6 +77,8 @@ class SimPyDESLogistics:
         }
         self.donation_sources = {}
         self.processing_facilities = {}
+        self.outreach_events = []
+        self.signup_queues = {}
 
     def setup_facilities(self):
         """Setup SimPy resources for donation processing"""
@@ -91,6 +94,13 @@ class SimPyDESLogistics:
             "Bluebird Farm": simpy.Store(self.env, capacity=1000),
             "Okanogan Valley Grains": simpy.Store(self.env, capacity=800),
             "Community Gardens": simpy.Store(self.env, capacity=300)
+        }
+
+        # Create outreach event signup queues
+        self.signup_queues = {
+            "milling_day": simpy.Resource(self.env, capacity=10),  # 10 slots per milling day
+            "baking_class": simpy.Resource(self.env, capacity=20),  # 20 slots per baking class
+            "canning_workshop": simpy.Resource(self.env, capacity=15)  # 15 slots per canning workshop
         }
 
     def grain_donation_process(self, source: str, destination: str, quantity: float):
@@ -153,6 +163,65 @@ Calculate efficiency and throughput metrics."""
         except Exception as e:
             logger.error(f"SimPy process error: {e}")
 
+    def outreach_signup_process(self, event_type: str, participant_id: int, signup_fee: float = 5.0):
+        """SimPy process for community outreach event signups"""
+        start_time = self.env.now
+
+        try:
+            # Request signup slot
+            signup_queue = self.signup_queues[event_type]
+            with signup_queue.request() as request:
+                yield request
+
+                # Simulate signup processing time
+                processing_time = random.uniform(2.0, 5.0)  # 2-5 minutes per signup
+                yield self.env.timeout(processing_time)
+
+                # Use llama3.2:1b for signup processing
+                try:
+                    import ollama
+                    signup_prompt = f"""Process community outreach signup:
+Event Type: {event_type}
+Participant ID: {participant_id}
+Signup Fee: ${signup_fee}
+Processing Time: {processing_time:.2f} minutes
+
+Calculate group buy coordination and material needs."""
+
+                    response = ollama.chat(
+                        model='llama3.2:1b',
+                        messages=[{'role': 'user', 'content': signup_prompt}]
+                    )
+
+                    # Simulate group buy coordination
+                    group_buy_savings = random.uniform(0.05, 0.15)  # 5-15% savings
+                    material_cost = signup_fee * (1 - group_buy_savings)
+
+                except Exception as e:
+                    logger.warning(f"Ollama signup processing failed: {e}")
+                    material_cost = signup_fee * 0.9  # 10% default savings
+
+                # Record signup event
+                total_time = self.env.now - start_time
+                signup_event = {
+                    "event_type": event_type,
+                    "participant_id": participant_id,
+                    "signup_fee": signup_fee,
+                    "material_cost": material_cost,
+                    "processing_time": processing_time,
+                    "total_time": total_time,
+                    "start_time": start_time,
+                    "end_time": self.env.now
+                }
+
+                self.outreach_events.append(signup_event)
+                logger.info(f"SimPy Outreach: Processed signup for {event_type} (participant {participant_id}) in {total_time:.2f} time units")
+
+        except KeyError as e:
+            logger.error(f"Unknown event type: {e}")
+        except Exception as e:
+            logger.error(f"SimPy signup process error: {e}")
+
     async def run_simpy_simulation(self, donations: List[Dict[str, Any]], simulation_time: float = 100.0) -> Dict[str, Any]:
         """Run SimPy simulation with grain donations"""
         self.setup_facilities()
@@ -207,6 +276,52 @@ Calculate efficiency and throughput metrics."""
             else:
                 utilization[facility_name] = 0.0
         return utilization
+
+    async def run_outreach_simulation(self, signups: List[Dict[str, Any]], simulation_time: float = 100.0) -> Dict[str, Any]:
+        """Run SimPy simulation for community outreach signups"""
+        self.setup_facilities()
+
+        # Schedule signup processes
+        for signup in signups:
+            self.env.process(self.outreach_signup_process(
+                signup["event_type"],
+                signup["participant_id"],
+                signup.get("signup_fee", 5.0)
+            ))
+
+        # Run simulation
+        self.env.run(until=simulation_time)
+
+        # Calculate outreach metrics
+        processed_signups = len(self.outreach_events)
+        if processed_signups > 0:
+            total_revenue = sum(e["signup_fee"] for e in self.outreach_events)
+            total_material_cost = sum(e["material_cost"] for e in self.outreach_events)
+            avg_processing_time = sum(e["processing_time"] for e in self.outreach_events) / processed_signups
+
+            # Calculate queue utilization for outreach events
+            outreach_utilization = {}
+            for event_type, queue in self.signup_queues.items():
+                event_signups = [e for e in self.outreach_events if e["event_type"] == event_type]
+                if event_signups:
+                    total_busy_time = sum(e["processing_time"] for e in event_signups)
+                    outreach_utilization[event_type] = min(1.0, total_busy_time / max(1, self.env.now))
+                else:
+                    outreach_utilization[event_type] = 0.0
+
+            logger.info(f"DES: Outreach signups {processed_signups}/{len(signups)} processed. "
+                       f"Revenue: ${total_revenue:.2f}. "
+                       f"Avg processing: {avg_processing_time:.2f} minutes")
+
+        return {
+            "processed_signups": processed_signups,
+            "total_revenue": total_revenue if processed_signups > 0 else 0.0,
+            "total_material_cost": total_material_cost if processed_signups > 0 else 0.0,
+            "avg_processing_time": avg_processing_time if processed_signups > 0 else 0.0,
+            "outreach_utilization": outreach_utilization if processed_signups > 0 else {},
+            "simulation_time": self.env.now,
+            "group_buy_savings": (total_revenue - total_material_cost) if processed_signups > 0 else 0.0
+        }
 
 
 class AsyncSubAgentCoordinator:
