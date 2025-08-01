@@ -1,0 +1,104 @@
+# Free Output Configuration for Tonasket Simulation
+# 50% free output for grant compliance and community feeding
+
+free_output_program:
+  compliance_percentage: 50  # 50% of total production
+  
+  bread_output:
+    daily_loaves: 560        # 50% of 1,120 loaves/day
+    retail_value_per_loaf: 5.00
+    daily_value: 2800        # 560 × $5 = $2,800
+    cost_per_loaf: 1.81      # Production cost
+    daily_cost: 1014         # 560 × $1.81 = $1,014
+    
+  flour_output:
+    20lb_bags_daily: 25      # 50% of 50 bags/day
+    5lb_bags_daily: 50       # 50% of 100 bags/day
+    20lb_value: 500          # 25 × $20 = $500
+    5lb_value: 300           # 50 × $6 = $300
+    total_flour_value: 800   # $500 + $300
+    total_flour_lbs: 750     # (25×20) + (50×5) = 750 lbs
+    flour_cost_per_lb: 0.11
+    daily_flour_cost: 82.50  # 750 × $0.11 = $82.50
+    
+  total_program:
+    daily_value: 3600        # $2,800 + $800 = $3,600
+    daily_cost: 1096.50      # $1,014 + $82.50 = $1,096.50
+    cost_efficiency: 69.5    # (3600-1096.50)/3600 = 69.5%
+
+grant_compliance:
+  required_programs:
+    - name: "CFPCGP"
+      requirement: "50% output to underserved"
+      compliance_method: "Food bank distribution"
+      
+    - name: "LFPP"
+      requirement: "Local food access"
+      compliance_method: "Community feeding program"
+      
+    - name: "VAPG"
+      requirement: "Value-added processing for community"
+      compliance_method: "Free flour distribution"
+      
+    - name: "Organic Market"
+      requirement: "Market development for underserved"
+      compliance_method: "Free product access"
+      
+  reporting_requirements:
+    frequency: "monthly"
+    metrics_tracked:
+      - "Pounds distributed"
+      - "Families served"
+      - "Meals provided"
+      - "Cost per beneficiary"
+      
+recipient_organization:
+  primary: "Tonasket Food Bank"
+  contact: "Food Bank Director"
+  capacity: 
+    bread_loaves: 300        # Current daily capacity
+    flour_lbs: 400           # Current daily capacity
+    
+  distribution_schedule:
+    monday: "Bread delivery"
+    wednesday: "Flour delivery"
+    friday: "Mixed delivery"
+    
+  beneficiary_demographics:
+    families_served: 150
+    individuals_served: 450
+    seniors: 30
+    children: 180
+
+overproduction_management:
+  excess_capacity:
+    bread_loaves: 260        # If Food Bank needs only 300/day
+    flour_lbs: 350           # If Food Bank needs only 400 lbs/day
+    
+  rerouting_strategy:
+    priority_1: "B2B contracts at cost"
+    priority_2: "Farmers market discount"
+    priority_3: "Staff/volunteer meals"
+    priority_4: "Composting program"
+    
+  spoilage_prevention:
+    current_rate: 1.4        # 1.4% spoilage rate
+    target_rate: 2.0         # 2% target maximum
+    daily_loss_potential: 96 # $96/day if not managed
+    storage_cost: 50         # $50/month storage
+
+impact_measurement:
+  community_benefit:
+    meals_equivalent: 1800   # 560 loaves = ~1800 meals
+    flour_meals: 375         # 750 lbs flour = ~375 meals
+    total_daily_meals: 2175
+    
+  economic_impact:
+    food_security_value: 3600    # $3,600/day food security
+    grant_leverage: 250000       # $250K grants leveraged
+    community_multiplier: 1.8    # $1.80 community benefit per $1 cost
+    
+  social_outcomes:
+    food_insecurity_reduction: 15  # 15% reduction in target area
+    community_engagement: 85       # 85% positive feedback
+    volunteer_hours_generated: 120 # 120 hours/month volunteer time

@@ -48,6 +48,32 @@ class DonationEventType(Enum):
     DELIVERY = "delivery"
 
 
+class BreadProductionEventType(Enum):
+    """DES event types for bread-focused oven productivity"""
+    OVEN_PREHEAT = "oven_preheat"
+    BREAD_BAKING_START = "bread_baking_start"
+    BREAD_BAKING_COMPLETE = "bread_baking_complete"
+    PIE_BAKING_START = "pie_baking_start"
+    PIE_BAKING_COMPLETE = "pie_baking_complete"
+    OTHER_BAKING_START = "other_baking_start"
+    OTHER_BAKING_COMPLETE = "other_baking_complete"
+    OVEN_COOLING = "oven_cooling"
+    B2B_RETURN_PROCESSING = "b2b_return_processing"
+
+
+class BreadProductionEventType(Enum):
+    """DES event types for bread-focused oven productivity"""
+    OVEN_PREHEAT = "oven_preheat"
+    BREAD_BAKING_START = "bread_baking_start"
+    BREAD_BAKING_COMPLETE = "bread_baking_complete"
+    PIE_BAKING_START = "pie_baking_start"
+    PIE_BAKING_COMPLETE = "pie_baking_complete"
+    OTHER_BAKING_START = "other_baking_start"
+    OTHER_BAKING_COMPLETE = "other_baking_complete"
+    OVEN_COOLING = "oven_cooling"
+    B2B_RETURN_PROCESSING = "b2b_return_processing"
+
+
 class TakeBackEventType(Enum):
     """DES event types for B2B take-back returns"""
     PIE_RETURN = "pie_return"
@@ -116,6 +142,54 @@ class SimPyDESLogistics:
             "total_tax_deductions": 0.0
         }
 
+        # Bread-focused oven productivity
+        self.oven_resources = {}
+        self.bread_production_events = []
+        self.bread_productivity_metrics = {
+            "daily_bread_loaves": 0,
+            "daily_pies": 0,
+            "daily_other_items": 0,
+            "bread_percentage": 0.70,  # 70% bread focus
+            "pie_percentage": 0.20,    # 20% pies
+            "other_percentage": 0.10,  # 10% other items
+            "total_daily_revenue": 0.0,
+            "avg_baking_time": 0.0,
+            "oven_utilization": 0.0
+        }
+
+        # Enhanced Mill productivity (1.0 tons/day capacity)
+        self.mill_resources = {}
+        self.mill_production_events = []
+        self.mill_productivity_metrics = {
+            "daily_flour_tons": 0.0,
+            "weekly_flour_tons": 0.0,
+            "target_daily_tons": 1.0,    # Enhanced to 1.0 tons/day target
+            "target_weekly_tons": 7.0,   # Enhanced to 7.0 tons/week
+            "flour_requirements": {
+                "bread_flour": 1.193,     # 1.193 tons for bread production
+                "free_flour": 0.750,      # 0.750 tons for free output
+                "total_needed": 1.943,    # 1.943 tons total needed
+                "buffer_capacity": 0.057  # 0.057 tons buffer (57 lbs)
+            },
+            "utilization_rate": 0.97,     # 97% utilization (1.943/2.0)
+            "total_grain_processed": 0.0,
+            "avg_milling_time": 0.0,
+            "mill_utilization": 0.0,
+            "flour_quality_score": 0.0
+        }
+
+        # Supplier fluctuations and deal terms
+        self.supplier_events = []
+        self.supplier_metrics = {
+            "base_price_per_ton": 2.10,  # $2.10/ton base price
+            "current_price_fluctuation": 0.0,  # 5-10% seasonal changes
+            "bulk_discount_rate": 0.10,  # 10% bulk discounts
+            "marketing_donations": 0.0,  # $500/event donations
+            "total_grain_cost": 0.0,
+            "total_discounts_applied": 0.0,
+            "seasonal_factor": 1.0
+        }
+
     def setup_facilities(self):
         """Setup SimPy resources for donation processing"""
         # Create processing facilities with capacity limits
@@ -138,6 +212,20 @@ class SimPyDESLogistics:
             "baking_class": simpy.Resource(self.env, capacity=50),  # Scaled to 50 slots per baking class
             "canning_workshop": simpy.Resource(self.env, capacity=35),  # Scaled to 35 slots per canning workshop
             "large_event": simpy.Resource(self.env, capacity=100)  # New large event capacity
+        }
+
+        # Create bread-focused oven resources
+        self.oven_resources = {
+            "main_bread_oven": simpy.Resource(self.env, capacity=2),  # 2 bread ovens for 100-200 loaves/day
+            "pie_oven": simpy.Resource(self.env, capacity=1),         # 1 pie oven for 20 pies/day
+            "utility_oven": simpy.Resource(self.env, capacity=1)      # 1 utility oven for other items
+        }
+
+        # Create enhanced mill resources for flour production (1.0 tons/day)
+        self.mill_resources = {
+            "grain_mill": simpy.Resource(self.env, capacity=1),       # 1 mill for 1.0 tons/day (enhanced)
+            "flour_sifter": simpy.Resource(self.env, capacity=1),     # 1 sifter for quality control
+            "grain_storage": simpy.Store(self.env, capacity=70)       # Enhanced to 70 tons grain storage
         }
 
         # Create B2B take-back return processing queues
@@ -266,6 +354,225 @@ Calculate group buy coordination and material needs."""
         except Exception as e:
             logger.error(f"SimPy signup process error: {e}")
 
+    def bread_production_process(self, product_type: str, quantity: int, unit_price: float = 5.0):
+        """SimPy process for bread-focused oven productivity (100-200 loaves/day, 70% output)"""
+        start_time = self.env.now
+
+        try:
+            # Determine oven type based on product
+            if product_type == "bread":
+                oven_resource = self.oven_resources["main_bread_oven"]
+                baking_time_per_unit = random.uniform(0.8, 1.2)  # 0.8-1.2 hours per batch of 10 loaves
+                batch_size = 10  # 10 loaves per batch
+            elif product_type == "pie":
+                oven_resource = self.oven_resources["pie_oven"]
+                baking_time_per_unit = random.uniform(1.0, 1.5)  # 1.0-1.5 hours per pie
+                batch_size = 1   # 1 pie per batch
+            else:  # other items
+                oven_resource = self.oven_resources["utility_oven"]
+                baking_time_per_unit = random.uniform(0.5, 1.0)  # 0.5-1.0 hours per batch
+                batch_size = 5   # 5 items per batch
+
+            # Calculate number of batches needed
+            num_batches = (quantity + batch_size - 1) // batch_size  # Ceiling division
+
+            total_items_produced = 0
+            total_revenue = 0.0
+
+            for batch in range(num_batches):
+                # Request oven resource
+                with oven_resource.request() as request:
+                    yield request
+
+                    # Calculate items in this batch
+                    items_in_batch = min(batch_size, quantity - total_items_produced)
+
+                    # Simulate baking time
+                    baking_time = baking_time_per_unit * (items_in_batch / batch_size)
+                    yield self.env.timeout(baking_time)
+
+                    # Calculate revenue for this batch
+                    batch_revenue = items_in_batch * unit_price
+                    total_revenue += batch_revenue
+                    total_items_produced += items_in_batch
+
+                    # Handle B2B returns (10% return rate for bread)
+                    if product_type == "bread" and random.random() < 0.10:
+                        returned_items = random.randint(1, min(3, items_in_batch))
+                        deduction = returned_items * 3.0  # $3 deduction per returned item
+                        total_revenue -= deduction
+
+                        logger.info(f"DES: B2B return processed - {returned_items} {product_type} items, ${deduction:.2f} deduction")
+
+            # Record production event
+            total_time = self.env.now - start_time
+            production_event = {
+                "product_type": product_type,
+                "quantity_requested": quantity,
+                "quantity_produced": total_items_produced,
+                "unit_price": unit_price,
+                "total_revenue": total_revenue,
+                "baking_time": total_time,
+                "batches_processed": num_batches,
+                "start_time": start_time,
+                "end_time": self.env.now
+            }
+
+            self.bread_production_events.append(production_event)
+
+            # Update productivity metrics
+            if product_type == "bread":
+                self.bread_productivity_metrics["daily_bread_loaves"] += total_items_produced
+            elif product_type == "pie":
+                self.bread_productivity_metrics["daily_pies"] += total_items_produced
+            else:
+                self.bread_productivity_metrics["daily_other_items"] += total_items_produced
+
+            self.bread_productivity_metrics["total_daily_revenue"] += total_revenue
+
+            logger.info(f"DES: Oven productivity {total_items_produced}/{quantity} ({product_type}). Throughput: {total_items_produced} units. Perf: {total_time:.2f} hours")
+
+        except Exception as e:
+            logger.error(f"SimPy bread production process error: {e}")
+
+    def mill_production_process(self, grain_type: str, grain_quantity_tons: float, target_flour_tons: float = 1.0):
+        """SimPy process for enhanced mill productivity (1.0 tons/day, 7.0 tons/week for bread flour)"""
+        start_time = self.env.now
+
+        try:
+            # Request mill resource
+            mill_resource = self.mill_resources["grain_mill"]
+            with mill_resource.request() as request:
+                yield request
+
+                # Calculate milling time based on quantity (1 ton = 2 hours milling time)
+                milling_time = grain_quantity_tons * 2.0
+                yield self.env.timeout(milling_time)
+
+                # Calculate flour yield (85% conversion rate from grain to flour)
+                flour_yield_rate = 0.85
+                flour_produced = grain_quantity_tons * flour_yield_rate
+
+                # Quality control with sifter
+                sifter_resource = self.mill_resources["flour_sifter"]
+                with sifter_resource.request() as request:
+                    yield request
+
+                    # Sifting time (0.5 hours per ton of flour)
+                    sifting_time = flour_produced * 0.5
+                    yield self.env.timeout(sifting_time)
+
+                    # Quality score based on grain type and processing
+                    if grain_type == "wheat":
+                        base_quality = random.uniform(0.85, 0.95)  # High quality for bread flour
+                    elif grain_type == "rye":
+                        base_quality = random.uniform(0.80, 0.90)  # Good quality
+                    else:  # other grains
+                        base_quality = random.uniform(0.75, 0.85)  # Standard quality
+
+                    # Processing quality bonus
+                    processing_bonus = min(0.05, (target_flour_tons - flour_produced) / target_flour_tons * 0.1)
+                    final_quality = min(1.0, base_quality + processing_bonus)
+
+                # Record mill production event
+                total_time = self.env.now - start_time
+                mill_event = {
+                    "grain_type": grain_type,
+                    "grain_quantity_tons": grain_quantity_tons,
+                    "flour_produced_tons": flour_produced,
+                    "flour_quality_score": final_quality,
+                    "milling_time": milling_time,
+                    "sifting_time": sifting_time,
+                    "total_time": total_time,
+                    "start_time": start_time,
+                    "end_time": self.env.now
+                }
+
+                self.mill_production_events.append(mill_event)
+
+                # Update mill productivity metrics
+                self.mill_productivity_metrics["daily_flour_tons"] += flour_produced
+                self.mill_productivity_metrics["total_grain_processed"] += grain_quantity_tons
+                self.mill_productivity_metrics["flour_quality_score"] = (
+                    (self.mill_productivity_metrics["flour_quality_score"] * (len(self.mill_production_events) - 1) + final_quality)
+                    / len(self.mill_production_events)
+                )
+
+                logger.info(f"DES: Mill productivity {flour_produced:.2f}/{target_flour_tons} tons. Throughput: {flour_produced:.2f} tons. Perf: {total_time:.2f} hours")
+
+        except Exception as e:
+            logger.error(f"SimPy mill production process error: {e}")
+
+    def supplier_fluctuation_process(self, supplier_name: str, grain_quantity_tons: float, season: str = "spring"):
+        """SimPy process for supplier price fluctuations (5-10% seasonal, $2-$2.20/ton)"""
+        start_time = self.env.now
+
+        try:
+            # Calculate seasonal price fluctuation (5-10%)
+            base_price = self.supplier_metrics["base_price_per_ton"]
+
+            # Seasonal adjustments
+            seasonal_adjustments = {
+                "spring": random.uniform(-0.05, 0.05),  # ±5% spring
+                "summer": random.uniform(-0.03, 0.07),  # -3% to +7% summer
+                "fall": random.uniform(0.05, 0.10),     # +5% to +10% fall (harvest)
+                "winter": random.uniform(-0.10, -0.05)  # -10% to -5% winter
+            }
+
+            fluctuation = seasonal_adjustments.get(season, 0.0)
+            current_price = base_price * (1 + fluctuation)
+
+            # Apply bulk discount for large orders (>5 tons)
+            if grain_quantity_tons > 5.0:
+                bulk_discount = self.supplier_metrics["bulk_discount_rate"]
+                discounted_price = current_price * (1 - bulk_discount)
+                discount_applied = (current_price - discounted_price) * grain_quantity_tons
+                self.supplier_metrics["total_discounts_applied"] += discount_applied
+            else:
+                discounted_price = current_price
+                discount_applied = 0.0
+
+            # Calculate total cost
+            total_cost = grain_quantity_tons * discounted_price
+            self.supplier_metrics["total_grain_cost"] += total_cost
+
+            # Marketing donation event (random chance)
+            marketing_donation = 0.0
+            if random.random() < 0.1:  # 10% chance of marketing donation
+                marketing_donation = 500.0  # $500/event
+                self.supplier_metrics["marketing_donations"] += marketing_donation
+
+            # Processing time for supplier transaction
+            processing_time = random.uniform(0.5, 1.5)  # 0.5-1.5 hours
+            yield self.env.timeout(processing_time)
+
+            # Record supplier event
+            supplier_event = {
+                "supplier_name": supplier_name,
+                "grain_quantity_tons": grain_quantity_tons,
+                "season": season,
+                "base_price": base_price,
+                "fluctuation_percent": fluctuation * 100,
+                "current_price": current_price,
+                "discounted_price": discounted_price,
+                "bulk_discount_applied": discount_applied,
+                "total_cost": total_cost,
+                "marketing_donation": marketing_donation,
+                "processing_time": processing_time,
+                "start_time": start_time,
+                "end_time": self.env.now
+            }
+
+            self.supplier_events.append(supplier_event)
+
+            # Update current fluctuation
+            self.supplier_metrics["current_price_fluctuation"] = fluctuation
+
+            logger.info(f"DES: Supplier queues {len(self.supplier_events)}/{len(self.supplier_events)} processed. Fluctuations: {fluctuation*100:.1f}% price. Donations: ${marketing_donation}/event. Perf: {processing_time:.2f} seconds")
+
+        except Exception as e:
+            logger.error(f"SimPy supplier fluctuation process error: {e}")
+
     async def run_simpy_simulation(self, donations: List[Dict[str, Any]], simulation_time: float = 100.0) -> Dict[str, Any]:
         """Run SimPy simulation with grain donations"""
         self.setup_facilities()
@@ -320,6 +627,170 @@ Calculate group buy coordination and material needs."""
             else:
                 utilization[facility_name] = 0.0
         return utilization
+
+    async def run_bread_production_simulation(self, production_schedule: List[Dict[str, Any]], simulation_time: float = 24.0) -> Dict[str, Any]:
+        """Run SimPy simulation for bread-focused oven productivity (1-day cycles)"""
+        self.setup_facilities()
+
+        # Reset daily metrics
+        self.bread_productivity_metrics = {
+            "daily_bread_loaves": 0,
+            "daily_pies": 0,
+            "daily_other_items": 0,
+            "bread_percentage": 0.70,
+            "pie_percentage": 0.20,
+            "other_percentage": 0.10,
+            "total_daily_revenue": 0.0,
+            "avg_baking_time": 0.0,
+            "oven_utilization": 0.0
+        }
+
+        # Schedule production processes based on 70% bread focus
+        for production in production_schedule:
+            self.env.process(self.bread_production_process(
+                production["product_type"],
+                production["quantity"],
+                production.get("unit_price", 5.0)
+            ))
+
+        # Run simulation for 1 day (24 hours)
+        self.env.run(until=simulation_time)
+
+        # Calculate final metrics
+        total_items = (self.bread_productivity_metrics["daily_bread_loaves"] +
+                      self.bread_productivity_metrics["daily_pies"] +
+                      self.bread_productivity_metrics["daily_other_items"])
+
+        if total_items > 0:
+            actual_bread_percentage = self.bread_productivity_metrics["daily_bread_loaves"] / total_items
+            actual_pie_percentage = self.bread_productivity_metrics["daily_pies"] / total_items
+            actual_other_percentage = self.bread_productivity_metrics["daily_other_items"] / total_items
+        else:
+            actual_bread_percentage = actual_pie_percentage = actual_other_percentage = 0.0
+
+        # Calculate average baking time
+        if self.bread_production_events:
+            avg_baking_time = sum(event["baking_time"] for event in self.bread_production_events) / len(self.bread_production_events)
+        else:
+            avg_baking_time = 0.0
+
+        # Calculate oven utilization
+        total_oven_time = sum(event["baking_time"] for event in self.bread_production_events)
+        max_possible_time = simulation_time * len(self.oven_resources)  # All ovens for full day
+        oven_utilization = total_oven_time / max(1, max_possible_time)
+
+        return {
+            "daily_production": {
+                "bread_loaves": self.bread_productivity_metrics["daily_bread_loaves"],
+                "pies": self.bread_productivity_metrics["daily_pies"],
+                "other_items": self.bread_productivity_metrics["daily_other_items"],
+                "total_items": total_items
+            },
+            "production_percentages": {
+                "bread_percentage": actual_bread_percentage,
+                "pie_percentage": actual_pie_percentage,
+                "other_percentage": actual_other_percentage,
+                "target_bread_percentage": 0.70
+            },
+            "financial_metrics": {
+                "total_daily_revenue": self.bread_productivity_metrics["total_daily_revenue"],
+                "avg_revenue_per_item": self.bread_productivity_metrics["total_daily_revenue"] / max(1, total_items),
+                "bread_revenue": self.bread_productivity_metrics["daily_bread_loaves"] * 5.0
+            },
+            "operational_metrics": {
+                "avg_baking_time": avg_baking_time,
+                "oven_utilization": oven_utilization,
+                "batches_processed": len(self.bread_production_events),
+                "simulation_time": self.env.now
+            },
+            "target_achievement": {
+                "bread_target_met": actual_bread_percentage >= 0.65,  # Within 5% of 70% target
+                "production_target_met": self.bread_productivity_metrics["daily_bread_loaves"] >= 100,  # Minimum 100 loaves
+                "revenue_target_met": self.bread_productivity_metrics["total_daily_revenue"] >= 500.0  # Minimum $500/day
+            }
+        }
+
+    async def run_mill_production_simulation(self, grain_inputs: List[Dict[str, Any]], simulation_time: float = 24.0) -> Dict[str, Any]:
+        """Run SimPy simulation for enhanced mill productivity (1.0 tons/day, 7.0 tons/week)"""
+        self.setup_facilities()
+
+        # Reset daily mill metrics (enhanced capacity)
+        self.mill_productivity_metrics = {
+            "daily_flour_tons": 0.0,
+            "weekly_flour_tons": 0.0,
+            "target_daily_tons": 1.0,     # Enhanced to 1.0 tons/day
+            "target_weekly_tons": 7.0,    # Enhanced to 7.0 tons/week
+            "flour_requirements": {
+                "bread_flour": 1.193,      # 1.193 tons for bread production
+                "free_flour": 0.750,       # 0.750 tons for free output
+                "total_needed": 1.943,     # 1.943 tons total needed
+                "buffer_capacity": 0.057   # 0.057 tons buffer
+            },
+            "utilization_rate": 0.97,      # 97% utilization
+            "total_grain_processed": 0.0,
+            "avg_milling_time": 0.0,
+            "mill_utilization": 0.0,
+            "flour_quality_score": 0.0
+        }
+
+        # Schedule mill processes with Bluebird grain inputs
+        for grain_input in grain_inputs:
+            self.env.process(self.mill_production_process(
+                grain_input["grain_type"],
+                grain_input["quantity_tons"],
+                grain_input.get("target_flour_tons", 0.7)
+            ))
+
+        # Run simulation for 1 day (24 hours)
+        self.env.run(until=simulation_time)
+
+        # Calculate final metrics
+        daily_flour = self.mill_productivity_metrics["daily_flour_tons"]
+        target_daily = self.mill_productivity_metrics["target_daily_tons"]
+
+        # Calculate average milling time
+        if self.mill_production_events:
+            avg_milling_time = sum(event["total_time"] for event in self.mill_production_events) / len(self.mill_production_events)
+        else:
+            avg_milling_time = 0.0
+
+        # Calculate mill utilization
+        total_mill_time = sum(event["total_time"] for event in self.mill_production_events)
+        mill_utilization = total_mill_time / max(1, simulation_time)
+
+        # Calculate weekly projection (daily * 7)
+        weekly_projection = daily_flour * 7
+
+        return {
+            "daily_production": {
+                "flour_tons_produced": daily_flour,
+                "target_daily_tons": target_daily,
+                "daily_target_met": daily_flour >= target_daily * 0.9,  # Within 10% of target
+                "grain_processed_tons": self.mill_productivity_metrics["total_grain_processed"],
+                "conversion_efficiency": daily_flour / max(0.1, self.mill_productivity_metrics["total_grain_processed"])
+            },
+            "weekly_projection": {
+                "projected_weekly_tons": weekly_projection,
+                "target_weekly_tons": self.mill_productivity_metrics["target_weekly_tons"],
+                "weekly_target_met": weekly_projection >= self.mill_productivity_metrics["target_weekly_tons"] * 0.9
+            },
+            "quality_metrics": {
+                "avg_flour_quality": self.mill_productivity_metrics["flour_quality_score"],
+                "quality_grade": "Premium" if self.mill_productivity_metrics["flour_quality_score"] >= 0.9 else
+                               "Standard" if self.mill_productivity_metrics["flour_quality_score"] >= 0.8 else "Basic"
+            },
+            "operational_metrics": {
+                "avg_milling_time": avg_milling_time,
+                "mill_utilization": mill_utilization,
+                "batches_processed": len(self.mill_production_events),
+                "simulation_time": self.env.now
+            },
+            "supplier_integration": {
+                "bluebird_grains_processed": sum(e["grain_quantity_tons"] for e in self.mill_production_events if "wheat" in e.get("grain_type", "")),
+                "total_suppliers": len(set(e.get("grain_type", "") for e in self.mill_production_events)),
+                "supply_reliability": len(self.mill_production_events) / max(1, len(grain_inputs))
+            }
+        }
 
     async def run_outreach_simulation(self, signups: List[Dict[str, Any]], simulation_time: float = 100.0) -> Dict[str, Any]:
         """Run SimPy simulation for community outreach signups"""

@@ -1,0 +1,123 @@
+# Right-Sized Kitchen Configuration for Tonasket Simulation
+# Total Investment: $47K for complete commercial kitchen setup
+
+kitchen_equipment:
+  ovens:
+    quantity: 2
+    unit_cost: 10000
+    total_cost: 20000
+    depreciation_years: 10
+    capacity: "100 loaves/day each"
+    specifications: "Commercial convection ovens with steam injection"
+    
+  mixers:
+    quantity: 2
+    unit_cost: 5000
+    total_cost: 10000
+    depreciation_years: 8
+    capacity: "50 lb flour each"
+    specifications: "Spiral mixers for bread dough"
+    
+  refrigerators:
+    quantity: 2
+    unit_cost: 4000
+    total_cost: 8000
+    depreciation_years: 12
+    capacity: "20 cubic feet each"
+    specifications: "Walk-in cooler and reach-in refrigerator"
+    
+  proofing_room:
+    quantity: 1
+    unit_cost: 5000
+    total_cost: 5000
+    depreciation_years: 15
+    capacity: "200 loaves proofing capacity"
+    specifications: "Temperature and humidity controlled"
+    
+  racks:
+    quantity: 10
+    unit_cost: 200
+    total_cost: 2000
+    depreciation_years: 10
+    capacity: "20 sheet pans each"
+    specifications: "Mobile stainless steel racks"
+    
+  decoration:
+    quantity: 1
+    unit_cost: 3000
+    total_cost: 3000
+    depreciation_years: 7
+    specifications: "Interior design, lighting, signage"
+    
+  display_cases:
+    quantity: 2
+    unit_cost: 2000
+    total_cost: 4000
+    depreciation_years: 10
+    capacity: "50 items each"
+    specifications: "Refrigerated and ambient display"
+    
+  tables_chairs:
+    quantity: 1
+    unit_cost: 5000
+    total_cost: 5000
+    depreciation_years: 8
+    specifications: "10 tables with 20 chairs for dining area"
+    
+  prep_tables:
+    quantity: 2
+    unit_cost: 1500
+    total_cost: 3000
+    depreciation_years: 10
+    specifications: "Stainless steel work surfaces"
+    
+  sinks:
+    quantity: 2
+    unit_cost: 1000
+    total_cost: 2000
+    depreciation_years: 15
+    specifications: "3-compartment and hand wash sinks"
+    
+  washing_area:
+    quantity: 1
+    unit_cost: 3000
+    total_cost: 3000
+    depreciation_years: 12
+    specifications: "Dishwasher and sanitizing station"
+
+kitchen_layout:
+  total_square_feet: 1200
+  zones:
+    baking_area: 400  # Ovens, mixers, proofing
+    prep_area: 300    # Prep tables, sinks
+    storage: 200      # Racks, refrigerators
+    dining: 300       # Tables, chairs, display cases
+
+financial_summary:
+  total_investment: 47000
+  annual_depreciation: 6587  # Calculated from depreciation schedules
+  operational_costs:
+    utilities_monthly: 800
+    maintenance_annual: 2350  # 5% of asset value
+    insurance_annual: 940     # 2% of asset value
+    total_annual_operating: 12950
+
+financing_options:
+  rbdg_grant:
+    max_amount: 500000
+    grant_percentage: 75  # 75% grant for underserved areas
+    loan_percentage: 25   # 25% loan at 0% interest
+    estimated_grant: 35250  # 75% of $47K
+    estimated_loan: 11750   # 25% of $47K
+    
+  community_facilities:
+    max_amount: 200000
+    interest_rate: 4.5
+    grant_percentage: 75
+    applicable_to: "building_with_kitchen"
+
+productivity_targets:
+  bread_production: 150  # loaves/day
+  bread_percentage: 70   # 70% of total output
+  revenue_target: 1200   # $/day
+  capacity_utilization: 85  # % of equipment capacity used

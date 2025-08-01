@@ -1,0 +1,87 @@
+# Post-Building Economics Configuration for Tonasket Simulation
+# Building ownership vs rental economics
+
+building_investment:
+  total_value: 200000      # $200K building value
+  kitchen_value: 68240     # $68,240 total kitchen
+  combined_investment: 268240  # Total investment
+  
+  financing:
+    rbdg_loan: 200000      # RBDG loan for building
+    interest_rate: 0.0     # 0% interest rate
+    term_years: 20         # 20-year term
+    monthly_payment: 833   # $833/month payment
+
+pre_building_costs:
+  kitchen_rental: 750      # $750/month rental (eliminated)
+  utilities: 0             # Included in rental
+  maintenance: 0           # Landlord responsibility
+  taxes: 0                # Landlord responsibility
+  insurance: 0             # Landlord responsibility
+  total_monthly: 750       # Total pre-building costs
+
+post_building_costs:
+  mortgage: 833            # $833/month mortgage
+  utilities: 750           # $750/month utilities
+  maintenance: 250         # $3,000/year = $250/month
+  taxes: 250              # $3,000/year = $250/month
+  insurance: 150          # Estimated building insurance
+  total_monthly: 2233     # Total post-building costs
+
+economic_impact:
+  monthly_increase: 1483   # $2,233 - $750 = $1,483 increase
+  annual_increase: 17796   # $1,483 × 12 months
+  
+  asset_benefits:
+    equity_building: 833   # Monthly equity from mortgage payments
+    tax_deductions: 250    # Monthly tax benefits
+    depreciation: 833      # Monthly depreciation benefit
+    
+  operational_benefits:
+    space_control: true    # Full control over space
+    customization: true    # Ability to modify
+    stability: true        # No rent increases
+    expansion_potential: true  # Room for growth
+
+building_specifications:
+  total_square_feet: 3000
+  zones:
+    mill_area: 600         # Grain milling operations
+    locker_area: 400       # Meat processing locker
+    oven_area: 800         # Baking operations
+    teaching_area: 600     # Educational programs
+    dining_area: 400       # Customer seating
+    storage: 200           # General storage
+    
+  features:
+    commercial_kitchen: true
+    teaching_facilities: true
+    customer_dining: true
+    mill_equipment: true
+    meat_locker: true
+    parking: 20            # 20 parking spaces
+
+maintenance_schedule:
+  annual_costs:
+    hvac_service: 800      # HVAC maintenance
+    plumbing: 400          # Plumbing maintenance
+    electrical: 300        # Electrical maintenance
+    exterior: 600          # Exterior maintenance
+    interior: 500          # Interior maintenance
+    equipment: 400         # Equipment maintenance
+    total: 3000            # $3,000/year total
+
+tax_assessment:
+  property_value: 200000   # Assessed value
+  tax_rate: 0.015         # 1.5% tax rate
+  annual_taxes: 3000      # $3,000/year
+  exemptions:
+    nonprofit_status: 0.5  # 50% reduction for non-profit
+    rural_location: 0.1    # 10% reduction for rural
+    
+utilities_breakdown:
+  electricity: 400         # $400/month
+  gas: 200                # $200/month
+  water_sewer: 100        # $100/month
+  internet: 50            # $50/month (backup to Starlink)
+  total: 750              # $750/month total

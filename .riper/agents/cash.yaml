@@ -1,0 +1,62 @@
+# Operating Cash Reserve Configuration for Tonasket Simulation
+# 6-month reserve for $3,000-$5,000/month expenses
+
+operating_cash_reserve:
+  target_months: 6
+  reserve_range:
+    minimum: 18000  # $18,000 minimum
+    maximum: 30000  # $30,000 maximum
+    target: 24000   # $24,000 target (6 × $4,000 average)
+  
+  funding_strategy:
+    donations_percentage: 20  # 20% of donations allocated
+    target_from_donations: 10000  # $10K from $50K annual donations
+    grant_percentage: 15  # 15% of grants allocated
+    revenue_percentage: 5  # 5% of revenue allocated
+
+monthly_expenses:
+  fixed_costs:
+    license_fees: 17      # $200/year state license
+    website: 25           # Website maintenance
+    delivery: 100         # Delivery vehicle costs
+    utilities: 750        # Post-building utilities
+    mortgage: 833         # 20-year RBDG 0% loan
+    maintenance: 250      # $3,000/year building maintenance
+    taxes: 250           # $3,000/year property taxes
+    
+  variable_costs:
+    labor: 2000          # Conservative labor estimate
+    ingredients: 500     # Raw materials
+    
+  total_monthly: 4725    # Sum of all expenses
+
+cash_flow_management:
+  minimum_balance: 5000  # Never go below $5K
+  replenishment_trigger: 15000  # Replenish when below $15K
+  target_balance: 24000  # Maintain $24K target
+  
+  funding_priorities:
+    1: "emergency_repairs"
+    2: "payroll_continuity"
+    3: "ingredient_stockpile"
+    4: "equipment_maintenance"
+    5: "growth_opportunities"
+
+risk_mitigation:
+  seasonal_adjustments:
+    winter: 1.2  # 20% increase for winter challenges
+    spring: 1.0  # Baseline
+    summer: 0.9  # 10% decrease for peak season
+    fall: 1.1    # 10% increase for harvest costs
+    
+  contingency_planning:
+    equipment_failure: 5000    # Emergency equipment fund
+    supply_disruption: 3000    # Alternative supplier costs
+    weather_delays: 2000       # Weather-related expenses
+    regulatory_changes: 1000   # Compliance adjustments
+
+performance_metrics:
+  cash_runway_months: 6      # Target months of coverage
+  expense_ratio: 0.75        # 75% of maximum budget
+  funding_sustainability: 0.8 # 80% sustainable funding
+  financial_stability: 0.85   # 85% stability target

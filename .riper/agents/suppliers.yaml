@@ -1,0 +1,54 @@
+# Supplier Configuration for Tonasket Simulation
+# Target: 5-10% price fluctuations, $2-$2.20/ton
+
+suppliers:
+  primary:
+    - name: "Bluebird Grain Farms"
+      type: "wheat"
+      base_price: 2.10  # $/ton
+      reliability: 0.95
+      quality_grade: "premium"
+      
+  secondary:
+    - name: "Whitestone Farms"
+      type: "fruits"
+      base_price: 2.50  # $/ton
+      reliability: 0.90
+      quality_grade: "standard"
+
+price_fluctuations:
+  seasonal_range:
+    min_fluctuation: -0.10  # -10%
+    max_fluctuation: 0.10   # +10%
+    
+  seasonal_patterns:
+    spring: 0.00   # Baseline
+    summer: 0.03   # +3% (growing season)
+    fall: 0.08     # +8% (harvest premium)
+    winter: -0.05  # -5% (storage season)
+    
+deal_terms:
+  bulk_discount:
+    threshold_tons: 5.0
+    discount_rate: 0.10  # 10% discount
+    
+  payment_terms:
+    net_days: 30
+    early_payment_discount: 0.02  # 2% for 10 days
+    
+  marketing_support:
+    donation_per_event: 500.00  # $500/event
+    event_frequency: "quarterly"
+    co_marketing_opportunities: true
+
+quality_standards:
+  moisture_content: "< 14%"
+  protein_content: "> 12%"
+  foreign_matter: "< 2%"
+  test_weight: "> 60 lbs/bushel"
+  
+delivery_logistics:
+  delivery_radius: 40  # miles
+  delivery_cost: 0.20  # $/mile
+  delivery_frequency: "weekly"
+  minimum_order: 1.0   # tons

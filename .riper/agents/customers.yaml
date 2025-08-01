@@ -1,0 +1,53 @@
+# Customer Behavior Configuration for Tonasket Simulation
+# Target: 30% repeat purchases, 20% donations
+
+customer_behavior:
+  total_customers: 50
+  repeat_purchase_rate: 0.30  # 30% repeat rate target
+  donation_rate: 0.20  # 20% donation rate target
+  
+customer_types:
+  individual:
+    percentage: 0.40
+    avg_purchase_frequency: 0.3
+    price_sensitivity: 0.7
+    loyalty_potential: 0.6
+    
+  family:
+    percentage: 0.35
+    avg_purchase_frequency: 0.5
+    price_sensitivity: 0.5
+    loyalty_potential: 0.8
+    
+  business:
+    percentage: 0.20
+    avg_purchase_frequency: 0.7
+    price_sensitivity: 0.3
+    loyalty_potential: 0.7
+    
+  tourist:
+    percentage: 0.05
+    avg_purchase_frequency: 0.1
+    price_sensitivity: 0.9
+    loyalty_potential: 0.2
+
+purchasing_patterns:
+  bread_preference: 0.70  # 70% prefer bread items
+  seasonal_variation:
+    spring: 1.0
+    summer: 1.1
+    fall: 1.2
+    winter: 0.9
+    
+donation_behavior:
+  avg_donation_amount: 25.00  # $5-$50 range, avg $25
+  donation_triggers:
+    - "milling_day_event"
+    - "community_outreach"
+    - "holiday_season"
+  donation_frequency: "monthly"
+  
+loyalty_programs:
+  repeat_customer_discount: 0.05  # 5% discount
+  loyalty_card_program: true
+  referral_bonus: 2.00  # $2 credit for referrals

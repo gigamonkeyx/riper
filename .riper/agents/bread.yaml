@@ -1,0 +1,40 @@
+# Bread-Focused Oven Configuration for Tonasket Simulation
+# Target: 100-200 loaves/day, 70% output focus
+
+bread_production:
+  target_daily_loaves: 150
+  target_percentage: 0.70
+  batch_size: 20
+  baking_time_per_batch: 1.2  # hours
+  
+oven_configuration:
+  main_bread_ovens: 2
+  capacity_per_oven: 100  # loaves/day
+  utilization_target: 0.85
+  
+quality_standards:
+  skill_level_required: 0.8  # Experienced bakers only
+  temperature_control: "precise"
+  timing_critical: true
+  
+pricing:
+  price_per_loaf: 5.00
+  cost_per_loaf: 2.18  # Based on current calculations
+  target_margin: 0.56  # 56% margin
+  
+b2b_integration:
+  return_rate: 0.10  # 10% return rate
+  deduction_per_return: 3.00  # $3 deduction
+  contracts:
+    - name: "Starbucks Tonasket"
+      daily_order: 50
+    - name: "Hometown Pizza"
+      daily_order: 30
+    - name: "Rocking Horse Bakery"
+      daily_order: 25
+
+seasonal_adjustments:
+  spring: 1.0
+  summer: 1.1
+  fall: 1.2   # +20% fall sales
+  winter: 0.9  # -10% winter sales

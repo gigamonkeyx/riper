@@ -51,7 +51,24 @@ class SDSystem:
             "spoilage_rate": 0.017,  # 1.7% spoilage rate
             "pie_production_daily": 100.0,  # Daily pie production baseline
             "return_rate_corps": 0.10,  # 10% return rate for C corps/LLCs
-            "return_rate_gov": 0.20  # 20% return rate for government entities
+            "return_rate_gov": 0.20,  # 20% return rate for government entities
+            "kitchen_rental_daily": 25.0,  # $25/day kitchen rental
+            "kitchen_utilization": 0.0,  # Kitchen utilization rate
+            "rental_revenue": 0.0,  # Daily rental revenue
+            # USDA Loan System Variables
+            "usda_loan_available": 500000.0,  # RBDG $10K-$500K available
+            "loan_interest_rate": 0.0,  # 0% interest for RBDG
+            "community_facilities_grant": 0.75,  # Up to 75% grant for underserved
+            "loan_applications_pending": 0.0,  # Pending loan applications
+            "approved_loan_amount": 0.0,  # Approved loan funding
+            "loan_utilization_rate": 0.0,  # Rate of loan fund utilization
+            "building_fund_target": 200000.0,  # $200K building target
+            "loan_repayment_capacity": 0.0,  # Monthly repayment capacity
+            # State License Fee Variables
+            "state_license_fee_annual": 200.0,  # $200/year state license fee
+            "license_compliance_rate": 1.0,  # License compliance (1.0 = fully compliant)
+            "license_fee_paid": 0.0,  # Annual license fee paid
+            "license_renewal_due": 365.0  # Days until license renewal
         }
         self.loop_history = []
 
@@ -91,6 +108,587 @@ class SDSystem:
                 "logistics_efficiency": 0.7
             },
             feedback_strength=0.6  # Balanced for multi-method complexity
+        )
+
+        # Right-Sized Kitchen Assets ($47K total) - 11 equipment types
+        self.kitchen_assets = {
+            "ovens": {"quantity": 2, "unit_cost": 10000, "total_cost": 20000, "depreciation_years": 10},
+            "mixers": {"quantity": 2, "unit_cost": 5000, "total_cost": 10000, "depreciation_years": 8},
+            "refrigerators": {"quantity": 2, "unit_cost": 4000, "total_cost": 8000, "depreciation_years": 12},
+            "proofing_room": {"quantity": 1, "unit_cost": 5000, "total_cost": 5000, "depreciation_years": 15},
+            "racks": {"quantity": 10, "unit_cost": 200, "total_cost": 2000, "depreciation_years": 10},
+            "decoration": {"quantity": 1, "unit_cost": 3000, "total_cost": 3000, "depreciation_years": 7},
+            "display_cases": {"quantity": 2, "unit_cost": 2000, "total_cost": 4000, "depreciation_years": 10},
+            "tables_chairs": {"quantity": 1, "unit_cost": 5000, "total_cost": 5000, "depreciation_years": 8},  # 10 tables/20 chairs
+            "prep_tables": {"quantity": 2, "unit_cost": 1500, "total_cost": 3000, "depreciation_years": 10},
+            "sinks": {"quantity": 2, "unit_cost": 1000, "total_cost": 2000, "depreciation_years": 15},
+            "washing_area": {"quantity": 1, "unit_cost": 3000, "total_cost": 3000, "depreciation_years": 12}
+        }
+
+        # Kitchen financial metrics (Original $47K + Extended $21K = $68K total)
+        self.kitchen_metrics = {
+            "original_kitchen_value": 47000,  # Original $47K kitchen
+            "extended_kitchen_value": 21240,  # Extended items from Observer research
+            "total_asset_value": 68240,  # Combined $68K total
+            "annual_depreciation": 0,  # Will be calculated
+            "maintenance_cost_annual": 3412,  # 5% of total asset value
+            "insurance_cost_annual": 1365,    # 2% of total asset value
+            "utility_cost_monthly": 950,     # Increased for extended equipment
+            "license_fees_annual": 665,      # ASCAP + beer/wine licenses
+            "monthly_services": 237,         # POS + Starlink monthly costs
+            "total_operating_cost_annual": 0  # Will be calculated
+        }
+
+        # Extended kitchen cost breakdown (Observer research integration)
+        self.extended_kitchen_costs = {
+            "meat_processing": 1063,    # Slicers + scales
+            "cooking_expansion": 11475, # Smoker + stove/oven/hood
+            "storage_enhancement": 6605, # Extra refrigerator + fruit locker
+            "technology_systems": 2099,  # Sound system + POS + Starlink
+            "annual_licenses": 665,      # ASCAP + beer/wine
+            "monthly_services": 237      # POS + Starlink subscriptions
+        }
+
+        # Operating Cash Reserve (6-month reserve for corrected $4,879/month expenses)
+        self.operating_cash_reserve = {
+            "target_months": 6,
+            "monthly_expenses_actual": 4879,  # $4,879/month actual (corrected)
+            "monthly_expenses_min": 4500,     # $4,500/month minimum
+            "monthly_expenses_max": 5200,     # $5,200/month maximum
+            "reserve_target": 29274,          # $4,879 × 6 = $29,274
+            "reserve_min": 27000,             # $27,000 minimum reserve
+            "reserve_max": 31200,             # $31,200 maximum reserve
+            "current_reserve": 0,             # Will be calculated
+            "funding_sources": {
+                "donations_percentage": 0.20,  # 20% of donations/grants
+                "target_from_donations": 10000  # $10K from $50K donations
+            }
+        }
+
+        # Monthly expense breakdown for operating cash (corrected ingredient costs)
+        self.monthly_expenses = {
+            "license_fees": 17,      # $17/month ($200/year state license)
+            "website": 25,           # $25/month website
+            "delivery": 100,         # $100/month delivery costs
+            "labor": 2000,           # $2,000/month labor (conservative)
+            "ingredients": 654,      # $654/month ingredients (corrected: $465 flour + $189 bread)
+            "utilities": 750,        # $750/month utilities (post-building)
+            "mortgage": 833,         # $833/month mortgage (20-year RBDG 0%)
+            "maintenance_monthly": 250,  # $3,000/year = $250/month
+            "taxes_monthly": 250,    # $3,000/year = $250/month
+            "total_monthly": 0       # Will be calculated
+        }
+
+        # Ingredient cost breakdown (corrected wheat pricing)
+        self.ingredient_costs = {
+            "flour_production": {
+                "monthly_cost": 465,     # $465/month for flour (150 bags/day × 30 days)
+                "wheat_cost": 300,       # $300/month wheat ($0.20/lb × 1500 lbs/day × 30)
+                "processing_cost": 165   # $165/month processing ($0.11/lb × 1500 lbs/day × 30)
+            },
+            "bread_production": {
+                "monthly_cost": 189,     # $189/month for bread ingredients
+                "wheat_flour_cost": 126, # Wheat flour for bread
+                "other_ingredients": 63  # Yeast, salt, etc.
+            },
+            "total_monthly": 654        # $465 + $189 = $654/month
+        }
+
+        # Post-building economics (building ownership vs rental)
+        self.building_economics = {
+            "building_value": 200000,    # $200K building
+            "kitchen_value": 68240,      # $68,240 total kitchen
+            "total_investment": 268240,  # Combined investment
+            "pre_building": {
+                "kitchen_rental": 750,   # $750/month rental (eliminated)
+                "utilities": 0,          # Included in rental
+                "maintenance": 0,        # Landlord responsibility
+                "taxes": 0              # Landlord responsibility
+            },
+            "post_building": {
+                "mortgage": 833,         # $833/month (20-year RBDG 0%)
+                "utilities": 750,        # $750/month utilities
+                "maintenance": 250,      # $3,000/year = $250/month
+                "taxes": 250,           # $3,000/year = $250/month
+                "total_monthly": 2083   # Total monthly costs
+            },
+            "monthly_savings": -1333    # $750 rental - $2,083 costs = -$1,333 increase
+        }
+
+        # 50% Free Output for Grant Compliance (enhanced with flour per loaf)
+        self.free_output_system = {
+            "compliance_percentage": 0.50,  # 50% of production
+            "bread_output": {
+                "daily_loaves": 597,        # 50% of 1,193 loaves (enhanced)
+                "retail_value_per_loaf": 5.00,
+                "daily_value": 2985,        # 597 × $5 = $2,985
+                "cost_per_loaf": 1.81,      # From production analysis
+                "daily_cost": 1081,         # 597 × $1.81 = $1,081
+                "flour_per_loaf": 1.0,      # 1 lb flour per loaf
+                "flour_cost_per_loaf": 0.31 # $0.31/lb flour cost
+            },
+            "flour_output": {
+                "20lb_bags_daily": 25,      # 50% of 50 bags
+                "5lb_bags_daily": 50,       # 50% of 100 bags
+                "20lb_value": 500,          # 25 × $20 = $500
+                "5lb_value": 300,           # 50 × $6 = $300
+                "total_flour_value": 800,   # $500 + $300 = $800
+                "total_flour_lbs": 750,     # (25×20) + (50×5) = 750 lbs
+                "flour_cost_per_lb": 0.31,  # $0.20 wheat + $0.11 processing = $0.31/lb
+                "daily_flour_cost": 232.50, # 750 × $0.31 = $232.50
+                "wheat_cost_daily": 150,    # 750 × $0.20 = $150
+                "processing_cost_daily": 82.50 # 750 × $0.11 = $82.50
+            },
+            "total_daily_value": 3785,     # $2,985 + $800 = $3,785 (enhanced)
+            "total_daily_cost": 1313.50,   # $1,081 + $232.50 = $1,313.50 (enhanced)
+            "cost_efficiency": 0.653,      # ($3,785 - $1,313.50) / $3,785 = 65.3%
+            "recipient": "Tonasket Food Bank",
+            "grant_compliance": ["CFPCGP", "LFPP", "VAPG", "Organic Market"],
+            "reporting_frequency": "monthly"
+        }
+
+        # Overproduction mitigation system
+        self.overproduction_mitigation = {
+            "excess_capacity": {
+                "bread_loaves": 260,        # Excess if Food Bank needs only 300/day
+                "flour_lbs": 370,           # Excess if Food Bank needs only 400 lbs/day
+                "reroute_to": ["retail", "b2b", "farmers_market"]
+            },
+            "spoilage_prevention": {
+                "current_spoilage_rate": 0.014,  # 1.4%
+                "target_spoilage_rate": 0.02,    # 2% target
+                "daily_spoilage_loss": 96,       # $96/day potential loss
+                "storage_cost_monthly": 50       # $50/month storage
+            },
+            "rerouting_strategy": {
+                "priority_1": "b2b_contracts",
+                "priority_2": "farmers_market",
+                "priority_3": "retail_discount",
+                "priority_4": "staff_meals"
+            }
+        }
+
+        # Meat Locker System Integration
+        self.meat_locker_system = {
+            "capacity_lbs": 200,                # 200 lbs whole animal storage
+            "upfront_cost": 10000,              # $10,000 upfront investment
+            "annual_maintenance": 1000,         # $1,000/year maintenance
+            "temperature_control": "32-34°F",   # Optimal meat aging temperature
+            "processing_schedule": {
+                "animals_per_week": 1,          # 1 whole animal per week
+                "lbs_per_animal": 200,          # 200 lbs meat per animal
+                "daily_yield": 28.6,            # 200 lbs ÷ 7 days = 28.6 lbs/day
+                "cost_per_lb": 2.50,            # $2.50/lb whole animal cost
+                "weekly_meat_cost": 500,        # 200 lbs × $2.50 = $500/week
+                "annual_meat_cost": 26000       # $500 × 52 weeks = $26,000/year
+            },
+            "product_allocation": {
+                "empanadas": 200,               # 200 lbs/week for empanadas
+                "meat_pies": 70,                # 70 lbs/week for meat pies
+                "other_products": 30,           # 30 lbs/week for other uses
+                "total_weekly": 300             # Total 300 lbs/week usage (includes waste)
+            },
+            "efficiency_metrics": {
+                "temperature_consistency": 0.972,  # 97.2% temperature consistency
+                "spoilage_rate": 0.012,            # 1.2% spoilage rate
+                "utilization_rate": 0.95,          # 95% capacity utilization
+                "sanitation_score": 0.958          # 95.8% sanitation compliance
+            }
+        }
+
+        # Connected Butcher's Station System
+        self.butchers_station_system = {
+            "upfront_cost": 3000,               # $3,000 upfront investment
+            "nsf_certified": True,              # NSF certification for food safety
+            "connection_type": "seamless",      # Seamless connection to meat locker
+            "equipment_specs": {
+                "stainless_steel_table": 1,     # 1 NSF stainless steel cutting table
+                "hand_wash_sink": 1,            # 1 hand washing sink
+                "equipment_wash_sink": 1,       # 1 equipment washing sink
+                "cutting_tools": "professional", # Professional butcher knives/tools
+                "sanitizing_station": 1,        # 1 sanitizing station
+                "temperature_monitoring": True   # Temperature monitoring system
+            },
+            "processing_capacity": {
+                "weekly_processing": 200,       # 200 lbs/week processing capacity
+                "daily_processing": 28.6,       # 28.6 lbs/day average
+                "processing_time": 2.0,         # 2 hours per animal processing
+                "efficiency_rate": 0.95,        # 95% processing efficiency
+                "waste_rate": 0.05              # 5% processing waste
+            },
+            "sanitation_protocols": {
+                "cleaning_frequency": "daily",   # Daily deep cleaning
+                "sanitizing_frequency": "hourly", # Hourly sanitizing
+                "temperature_checks": "continuous", # Continuous temperature monitoring
+                "compliance_rate": 0.958,        # 95.8% sanitation compliance
+                "inspection_ready": True         # Always inspection ready
+            },
+            "integration_benefits": {
+                "no_temp_compromise": True,      # No temperature compromise during transfer
+                "reduced_contamination": 0.85,   # 85% contamination risk reduction
+                "workflow_efficiency": 0.92,     # 92% workflow efficiency
+                "cost_savings": 500              # $500/year savings from integration
+            }
+        }
+
+        # Enhanced Mason Jars System (Increased Capacity)
+        self.mason_jars_system = {
+            "initial_investment": 60000,        # $60,000 for 30,000 jars (doubled)
+            "jar_count": 30000,                 # 30,000 large mason jars (doubled)
+            "cost_per_jar": 2.00,               # $2.00 per jar cost
+            "annual_maintenance": 2000,         # $2,000/year maintenance
+            "refund_program": {
+                "refund_per_jar": 0.50,         # $0.50 refund per returned jar
+                "return_rate": 0.50,            # 50% jar return rate
+                "daily_refunds_year2": 50,      # 50 jars returned/day Year 2
+                "daily_refunds_year3": 150      # 150 jars returned/day Year 3 (reduced from 500)
+            },
+            "production_schedule": {
+                "year_2": {
+                    "daily_jars": 100,          # 100 jars/day Year 2
+                    "selling_price": 3.00,      # $3.00 per jar
+                    "daily_revenue": 300,       # $300/day revenue
+                    "daily_cost": 250,          # $250/day cost (100 × $2.50)
+                    "daily_refunds": 25         # $25/day refunds (50 × $0.50)
+                },
+                "year_3": {
+                    "daily_jars": 300,          # 300 jars/day Year 3 (reduced from 1,000)
+                    "selling_price": 3.00,      # $3.00 per jar
+                    "daily_revenue": 900,       # $900/day revenue (300 × $3.00)
+                    "daily_cost": 750,          # $750/day cost (300 × $2.50)
+                    "daily_refunds": 75         # $75/day refunds (150 × $0.50)
+                }
+            },
+            "jar_specifications": {
+                "size": "32 oz",                # 32 oz large mason jars
+                "material": "glass",            # Food-grade glass
+                "lid_type": "metal_screw",      # Metal screw-on lids
+                "food_safe": True,              # Food-safe certification
+                "dishwasher_safe": True,        # Dishwasher safe
+                "reusable": True                # Fully reusable design
+            },
+            "sustainability_metrics": {
+                "reuse_cycles": 50,             # 50 reuse cycles per jar
+                "environmental_impact": 0.15,   # 15% environmental impact vs disposable
+                "customer_satisfaction": 0.92,  # 92% customer satisfaction
+                "brand_loyalty_boost": 0.18     # 18% brand loyalty increase
+            }
+        }
+
+        # Fruit Locker System
+        self.fruit_locker_system = {
+            "upfront_cost": 10000,              # $10,000 upfront investment
+            "capacity_lbs": 5000,               # 5,000 lbs fruit storage capacity
+            "temperature_control": "32-40°F",   # Optimal fruit storage temperature
+            "humidity_control": "85-95%",       # Optimal humidity range
+            "annual_maintenance": 500,          # $500/year maintenance cost
+            "storage_specifications": {
+                "cooling_system": "walk_in_cooler", # Walk-in cooler system
+                "humidity_system": "automatic",     # Automatic humidity control
+                "air_circulation": "forced_air",    # Forced air circulation
+                "temperature_monitoring": "continuous", # Continuous monitoring
+                "backup_power": True,               # Backup power system
+                "alarm_system": True                # Temperature/humidity alarms
+            },
+            "efficiency_metrics": {
+                "temperature_consistency": 0.978,   # 97.8% temperature consistency
+                "humidity_consistency": 0.965,      # 96.5% humidity consistency
+                "spoilage_rate": 0.014,             # 1.4% spoilage rate
+                "energy_efficiency": 0.88,          # 88% energy efficiency
+                "utilization_rate": 0.82,           # 82% capacity utilization
+                "quality_retention": 0.94           # 94% quality retention
+            },
+            "fruit_rotation": {
+                "fifo_compliance": 0.98,            # 98% FIFO compliance
+                "rotation_frequency": "daily",      # Daily rotation checks
+                "quality_inspections": "twice_daily", # Twice daily inspections
+                "removal_threshold": 0.85,          # Remove at 85% quality
+                "documentation": "digital_log"      # Digital logging system
+            },
+            "seasonal_usage": {
+                "peak_months": ["september", "october", "november"], # Peak usage
+                "capacity_september": 0.95,         # 95% capacity in September
+                "capacity_october": 0.90,           # 90% capacity in October
+                "capacity_november": 0.85,          # 85% capacity in November
+                "off_season_capacity": 0.20         # 20% capacity off-season
+            },
+            "cost_benefits": {
+                "spoilage_reduction": 2100,         # $2,100/year spoilage reduction
+                "quality_premium": 1500,            # $1,500/year quality premium
+                "extended_season": 800,             # $800/year extended season
+                "total_annual_benefit": 4400        # $4,400/year total benefit
+            }
+        }
+
+        # Jar Storage System
+        self.jar_storage_system = {
+            "upfront_cost": 1500,               # $1,500 upfront investment
+            "capacity_jars": 30000,             # 30,000 jars storage capacity
+            "storage_type": "shock_absorbing",  # Shock-absorbing storage system
+            "annual_maintenance": 150,          # $150/year maintenance cost
+            "storage_specifications": {
+                "shelving_system": "industrial_grade", # Industrial grade shelving
+                "shock_absorption": "foam_padding",     # Foam padding for protection
+                "organization_system": "color_coded",   # Color-coded organization
+                "inventory_tracking": "barcode_system", # Barcode tracking system
+                "climate_control": "ambient",           # Ambient temperature storage
+                "security_system": "locked_access"      # Locked access control
+            },
+            "efficiency_metrics": {
+                "inspection_efficiency": 0.978,     # 97.8% inspection efficiency
+                "breakage_rate": 0.005,             # 0.5% breakage rate
+                "organization_score": 0.95,         # 95% organization efficiency
+                "access_speed": 0.92,               # 92% access speed efficiency
+                "inventory_accuracy": 0.988,        # 98.8% inventory accuracy
+                "space_utilization": 0.85           # 85% space utilization
+            },
+            "inspection_zones": {
+                "incoming_inspection": {
+                    "capacity": 5000,               # 5,000 jars incoming zone
+                    "inspection_rate": 500,         # 500 jars/hour inspection
+                    "quality_threshold": 0.98,      # 98% quality threshold
+                    "rejection_rate": 0.02          # 2% rejection rate
+                },
+                "outgoing_inspection": {
+                    "capacity": 3000,               # 3,000 jars outgoing zone
+                    "inspection_rate": 400,         # 400 jars/hour inspection
+                    "final_check": True,            # Final quality check
+                    "packaging_ready": 0.99         # 99% packaging ready rate
+                }
+            },
+            "operational_benefits": {
+                "reduced_breakage": 450,            # $450/year breakage reduction
+                "improved_efficiency": 300,         # $300/year efficiency gain
+                "better_organization": 200,         # $200/year organization benefit
+                "faster_access": 150,               # $150/year faster access
+                "total_annual_benefit": 1100        # $1,100/year total benefit
+            },
+            "jar_flow_management": {
+                "daily_intake": 300,                # 300 jars/day average intake
+                "daily_outflow": 300,               # 300 jars/day average outflow
+                "peak_capacity": 25000,             # 25,000 jars peak storage
+                "minimum_stock": 5000,              # 5,000 jars minimum stock
+                "reorder_point": 8000,              # 8,000 jars reorder point
+                "turnover_rate": 12                 # 12 times/year turnover
+            }
+        }
+
+        # Final Enhanced Reporting System (Updated Building Cost Integration)
+        self.reporting_system = {
+            "annual_financials": {
+                "total_revenue": 2220000,       # $2.22M/year (final calculations)
+                "bread_revenue": 660285,        # $1,809/day × 365 = $660K (retail cap + wholesale)
+                "flour_revenue": 584000,        # $1,600/day × 365 = $584K (flour sales)
+                "meat_products_revenue": 182500, # Empanadas + meat pies revenue
+                "jar_revenue": 328500,          # Mason jars revenue Year 3 ($900/day × 365)
+                "bundle_revenue": 273750,       # Premium bundles revenue Year 3 ($750/day × 365)
+                "pan_revenue": 146000,          # Custom pie pans revenue Year 3 ($400/day × 365)
+                "fruit_revenue": 45625,         # Fruit products revenue ($125/day × 365)
+                "other_revenue": 0,             # No other revenue
+                "grants_donations": 389420,     # $389,420 grants and donations
+                "gross_income": 2609420,        # $2.22M + $389,420 = $2.61M
+                "operating_expenses": 179995,   # $179,995 operating expenses (updated)
+                "free_output_cost": 750000,     # $750,000 free output value
+                "flour_donation_cost": 39420,   # $39,420 flour donation cost
+                "total_costs": 969415,          # $179,995 + $750,000 + $39,420
+                "total_profit": 1640005,        # $2.61M - $969,415 = $1.64M (updated)
+                "profit_margin": 0.739          # 73.9% profit margin (updated)
+            },
+            "grant_compliance_metrics": {
+                "free_output_annual_value": 750000,   # $750,000/year free output value (updated)
+                "free_output_percentage": 0.50,       # 50% of production
+                "bread_loaves_served": 217905,        # 597/day × 365 = 217,905 (enhanced)
+                "flour_lbs_served": 273750,           # 750 lbs/day × 365 = 273,750
+                "total_meals_equivalent": 100000,     # 100,000 meals/year (updated target)
+                "families_served": 150,               # Estimated families
+                "individuals_served": 450,            # Estimated individuals
+                "compliance_rate": 1.0                # 100% compliance
+            },
+            "grant_programs": {
+                "cfpcgp": {
+                    "requirement": "50% output to underserved",
+                    "compliance": "50% free output to Food Bank",
+                    "annual_value": 1314000,
+                    "status": "compliant"
+                },
+                "lfpp": {
+                    "requirement": "Local food access improvement",
+                    "compliance": "273,750 lbs flour + 204,400 loaves annually",
+                    "annual_value": 1314000,
+                    "status": "compliant"
+                },
+                "vapg": {
+                    "requirement": "Value-added processing for community",
+                    "compliance": "Flour milling + bread baking for food bank",
+                    "annual_value": 1314000,
+                    "status": "compliant"
+                },
+                "organic_market": {
+                    "requirement": "Market development for underserved",
+                    "compliance": "Free product distribution program",
+                    "annual_value": 1314000,
+                    "status": "compliant"
+                }
+            },
+            "reporting_frequency": {
+                "monthly": ["production_metrics", "free_output_tracking", "meal_counts"],
+                "quarterly": ["financial_summaries", "compliance_verification"],
+                "annually": ["comprehensive_audit", "grant_renewals", "impact_assessment"]
+            }
+        }
+
+        # Operating Cash Reserve Management Loop
+        operating_cash_loop = SDFeedbackLoop(
+            loop_id="operating_cash_reserve",
+            loop_type="balancing",
+            variables=["cash_reserve_level", "monthly_expenses", "donation_funding", "financial_stability"],
+            current_state={
+                "cash_reserve_level": 0.0,    # Starting with no reserve
+                "monthly_expenses": 0.75,     # 75% of max expenses ($3,750/$5,000)
+                "donation_funding": 0.20,     # 20% of donations allocated
+                "financial_stability": 0.60   # 60% stability target
+            },
+            feedback_strength=0.9  # Very strong feedback for cash management
+        )
+
+        # Post-Building Economics Loop
+        building_economics_loop = SDFeedbackLoop(
+            loop_id="building_economics",
+            loop_type="balancing",
+            variables=["building_ownership", "monthly_costs", "rental_savings", "asset_value"],
+            current_state={
+                "building_ownership": 1.0,     # 100% owned (post-building)
+                "monthly_costs": 0.42,         # $2,083/$5,000 = 42% of max budget
+                "rental_savings": -0.27,       # -$1,333 increase vs rental
+                "asset_value": 0.54            # $268K asset value factor
+            },
+            feedback_strength=0.7  # Moderate feedback for building economics
+        )
+
+        # Free Output Compliance Loop (50% for grants)
+        free_output_loop = SDFeedbackLoop(
+            loop_id="free_output_compliance",
+            loop_type="balancing",
+            variables=["compliance_percentage", "grant_requirements", "food_bank_capacity", "cost_efficiency"],
+            current_state={
+                "compliance_percentage": 0.50,    # 50% free output
+                "grant_requirements": 0.50,       # 50% required for grants
+                "food_bank_capacity": 0.80,       # 80% of Food Bank capacity
+                "cost_efficiency": 0.70           # 70% cost efficiency for free output
+            },
+            feedback_strength=0.9  # Very strong feedback for compliance
+        )
+
+        # Overproduction Mitigation Loop
+        overproduction_loop = SDFeedbackLoop(
+            loop_id="overproduction_mitigation",
+            loop_type="balancing",
+            variables=["excess_production", "rerouting_efficiency", "spoilage_rate", "storage_costs"],
+            current_state={
+                "excess_production": 0.20,        # 20% excess production
+                "rerouting_efficiency": 0.85,     # 85% successful rerouting
+                "spoilage_rate": 0.014,           # 1.4% current spoilage
+                "storage_costs": 0.05             # 5% of revenue for storage
+            },
+            feedback_strength=0.8  # Strong feedback for waste reduction
+        )
+
+        # Reporting and Compliance Loop
+        reporting_compliance_loop = SDFeedbackLoop(
+            loop_id="reporting_compliance",
+            loop_type="balancing",
+            variables=["compliance_rate", "reporting_accuracy", "grant_requirements", "audit_readiness"],
+            current_state={
+                "compliance_rate": 1.0,           # 100% compliance with grant requirements
+                "reporting_accuracy": 0.95,       # 95% reporting accuracy
+                "grant_requirements": 0.50,       # 50% free output requirement
+                "audit_readiness": 0.90           # 90% audit readiness
+            },
+            feedback_strength=0.95  # Very strong feedback for compliance
+        )
+
+        # Meat Locker Operations Loop
+        meat_locker_loop = SDFeedbackLoop(
+            loop_id="meat_locker_operations",
+            loop_type="balancing",
+            variables=["temperature_control", "meat_processing", "sanitation_compliance", "cost_efficiency"],
+            current_state={
+                "temperature_control": 0.972,     # 97.2% temperature consistency
+                "meat_processing": 0.95,          # 95% processing efficiency
+                "sanitation_compliance": 0.958,   # 95.8% sanitation score
+                "cost_efficiency": 0.85           # 85% cost efficiency target
+            },
+            feedback_strength=0.85  # Strong feedback for meat safety
+        )
+
+        # Butcher's Station Sanitation Loop
+        butchers_station_loop = SDFeedbackLoop(
+            loop_id="butchers_station_sanitation",
+            loop_type="balancing",
+            variables=["sanitation_compliance", "processing_efficiency", "equipment_maintenance", "workflow_integration"],
+            current_state={
+                "sanitation_compliance": 0.958,   # 95.8% sanitation compliance
+                "processing_efficiency": 0.95,    # 95% processing efficiency
+                "equipment_maintenance": 0.92,    # 92% equipment maintenance score
+                "workflow_integration": 0.92      # 92% workflow efficiency with locker
+            },
+            feedback_strength=0.90  # Very strong feedback for food safety
+        )
+
+        # Mason Jars Sustainability Loop
+        mason_jars_loop = SDFeedbackLoop(
+            loop_id="mason_jars_sustainability",
+            loop_type="reinforcing",
+            variables=["jar_return_rate", "customer_satisfaction", "brand_loyalty", "environmental_impact"],
+            current_state={
+                "jar_return_rate": 0.50,          # 50% jar return rate
+                "customer_satisfaction": 0.92,    # 92% customer satisfaction
+                "brand_loyalty": 0.18,            # 18% brand loyalty boost
+                "environmental_impact": 0.85      # 85% environmental benefit (1 - 0.15)
+            },
+            feedback_strength=0.85  # Strong feedback for sustainability
+        )
+
+        # Fruit Locker Operations Loop
+        fruit_locker_loop = SDFeedbackLoop(
+            loop_id="fruit_locker_operations",
+            loop_type="balancing",
+            variables=["temperature_control", "humidity_control", "spoilage_rate", "quality_retention"],
+            current_state={
+                "temperature_control": 0.978,     # 97.8% temperature consistency
+                "humidity_control": 0.965,        # 96.5% humidity consistency
+                "spoilage_rate": 0.986,           # 98.6% spoilage prevention (1 - 0.014)
+                "quality_retention": 0.94         # 94% quality retention
+            },
+            feedback_strength=0.88  # Strong feedback for fruit preservation
+        )
+
+        # Jar Storage Operations Loop
+        jar_storage_loop = SDFeedbackLoop(
+            loop_id="jar_storage_operations",
+            loop_type="balancing",
+            variables=["inspection_efficiency", "breakage_prevention", "organization_score", "inventory_accuracy"],
+            current_state={
+                "inspection_efficiency": 0.978,   # 97.8% inspection efficiency
+                "breakage_prevention": 0.995,     # 99.5% breakage prevention (1 - 0.005)
+                "organization_score": 0.95,       # 95% organization efficiency
+                "inventory_accuracy": 0.988       # 98.8% inventory accuracy
+            },
+            feedback_strength=0.80  # Strong feedback for storage efficiency
+        )
+
+        # Extended Kitchen Cost Management Loop (Observer integration)
+        extended_kitchen_loop = SDFeedbackLoop(
+            loop_id="extended_kitchen_costs",
+            loop_type="balancing",
+            variables=["extended_kitchen_investment", "productivity_boost", "grant_coverage", "operating_efficiency"],
+            current_state={
+                "extended_kitchen_investment": 0.31,  # $21K/$68K = 31% of total kitchen
+                "productivity_boost": 0.159,          # 15.9% average boost from Observer research
+                "grant_coverage": 1.0,                # 100% RBDG coverage available
+                "operating_efficiency": 0.75          # 75% efficiency target
+            },
+            feedback_strength=0.8  # Strong feedback for cost management
         )
 
         # Enhanced community outreach feedback loop with B2B blending
@@ -258,11 +856,86 @@ class SDSystem:
             feedback_strength=0.8  # Strong local supply chain feedback
         )
 
+        # Kitchen rental revenue loop: Rental utilization → Revenue → Capital stock → Kitchen capacity
+        kitchen_rental_loop = SDFeedbackLoop(
+            loop_id="kitchen_rental",
+            loop_type="reinforcing",
+            variables=["kitchen_utilization", "rental_revenue", "nonprofit_capital_stock", "kitchen_capacity"],
+            current_state={
+                "kitchen_utilization": 0.0,  # Daily kitchen utilization rate
+                "rental_revenue": 0.0,       # Daily rental revenue ($25/day)
+                "nonprofit_capital_stock": 0.0, # Capital accumulation from rentals
+                "kitchen_capacity": 1.0      # Kitchen capacity (1 = single kitchen)
+            },
+            feedback_strength=0.6  # Moderate feedback for rental income
+        )
+
+        # USDA RBDG loan loop: Loan application → Approval → Building funding → Community capacity
+        usda_rbdg_loop = SDFeedbackLoop(
+            loop_id="usda_rbdg_loans",
+            loop_type="reinforcing",
+            variables=["loan_applications_pending", "approved_loan_amount", "building_fund_target", "community_impact"],
+            current_state={
+                "loan_applications_pending": 0.0,  # Pending RBDG applications
+                "approved_loan_amount": 0.0,       # Approved RBDG funding
+                "building_fund_target": 200000.0,  # $200K building target
+                "community_impact": 0.3            # Community impact from funding
+            },
+            feedback_strength=0.8  # Strong positive feedback for rural development
+        )
+
+        # Community Facilities grant loop: Grant eligibility → Funding → Infrastructure → Service capacity
+        community_facilities_loop = SDFeedbackLoop(
+            loop_id="community_facilities_grants",
+            loop_type="reinforcing",
+            variables=["community_facilities_grant", "grant_funding", "building_fund_target", "supply_capacity"],
+            current_state={
+                "community_facilities_grant": 0.75, # 75% grant rate for underserved
+                "grant_funding": 0.0,               # Current grant funding
+                "building_fund_target": 200000.0,   # Building funding target
+                "supply_capacity": 0.6              # Current supply capacity
+            },
+            feedback_strength=0.9  # Very strong feedback for infrastructure grants
+        )
+
+        # Bank loan integration loop: Capital stock → Loan capacity → Approved funding → Capital growth
+        bank_loan_integration_loop = SDFeedbackLoop(
+            loop_id="bank_loan_integration",
+            loop_type="reinforcing",
+            variables=["nonprofit_capital_stock", "loan_repayment_capacity", "approved_loan_amount", "usda_loan_available"],
+            current_state={
+                "nonprofit_capital_stock": 0.0,    # Current capital stock
+                "loan_repayment_capacity": 0.0,    # Monthly repayment capacity
+                "approved_loan_amount": 0.0,       # Approved loan amount
+                "usda_loan_available": 500000.0    # Available USDA loan funds
+            },
+            feedback_strength=0.7  # Strong feedback for loan-capital integration
+        )
+
+        # State license fee loop: License compliance → Operations → Revenue → License renewal capacity
+        state_license_loop = SDFeedbackLoop(
+            loop_id="state_license_fee",
+            loop_type="balancing",
+            variables=["license_compliance_rate", "state_license_fee_annual", "nonprofit_capital_stock", "license_renewal_due"],
+            current_state={
+                "license_compliance_rate": 1.0,    # Full compliance initially
+                "state_license_fee_annual": 200.0, # $200/year fee
+                "nonprofit_capital_stock": 0.0,    # Capital for fee payment
+                "license_renewal_due": 365.0       # Days until renewal
+            },
+            feedback_strength=0.5  # Moderate balancing feedback for regulatory compliance
+        )
+
         self.feedback_loops = [grant_impact_loop, supply_demand_loop, multimethod_loop, outreach_growth_loop,
-                              resource_flow_loop, full_basis_loop, enhanced_deduction_loop,
-                              government_refund_loop, takeback_donation_loop, geopolitical_risk_loop,
-                              bread_revenue_loop, coffee_shop_revenue_loop, restaurant_revenue_loop,
-                              cakes_revenue_loop, milling_revenue_loop]
+                              operating_cash_loop, building_economics_loop, free_output_loop,
+                              overproduction_loop, reporting_compliance_loop, meat_locker_loop,
+                              butchers_station_loop, mason_jars_loop, fruit_locker_loop,
+                              jar_storage_loop, extended_kitchen_loop, resource_flow_loop,
+                              full_basis_loop, enhanced_deduction_loop, government_refund_loop,
+                              takeback_donation_loop, geopolitical_risk_loop, bread_revenue_loop,
+                              coffee_shop_revenue_loop, restaurant_revenue_loop, cakes_revenue_loop,
+                              milling_revenue_loop, kitchen_rental_loop, usda_rbdg_loop,
+                              community_facilities_loop, bank_loan_integration_loop, state_license_loop]
 
     async def simulate_feedback_dynamics(self, grant_change: float, demand_change: float) -> Dict[str, Any]:
         """Simulate SD feedback loops with Ollama-qwen2.5 analysis"""
@@ -879,6 +1552,285 @@ Provide quantitative insights and recommendations."""
                 if loop.loop_id in ["full_cost_basis", "enhanced_deductions", "government_refunds", "takeback_donations"]
             },
             "ollama_analysis": ollama_analysis
+        }
+
+    async def simulate_kitchen_rental_flow(self, registry_utilization: float = 0.8) -> Dict[str, Any]:
+        """Simulate kitchen rental SD flow with Ollama-llama3.2:1b cost tracking"""
+
+        # Calculate daily kitchen rental flow
+        daily_rental = self.system_state["kitchen_rental_daily"]
+        utilization_rate = min(1.0, registry_utilization)  # Cap at 100%
+        actual_rental_revenue = daily_rental * utilization_rate
+
+        # Update system state
+        self.system_state["kitchen_utilization"] = utilization_rate
+        self.system_state["rental_revenue"] = actual_rental_revenue
+        self.system_state["nonprofit_capital_stock"] += actual_rental_revenue
+
+        # Update kitchen rental feedback loop
+        kitchen_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "kitchen_rental"), None)
+        if kitchen_loop:
+            kitchen_loop.current_state["kitchen_utilization"] = utilization_rate
+            kitchen_loop.current_state["rental_revenue"] = actual_rental_revenue
+            kitchen_loop.current_state["nonprofit_capital_stock"] = self.system_state["nonprofit_capital_stock"]
+
+        # Use Ollama-llama3.2:1b for cost tracking analysis
+        try:
+            kitchen_prompt = f"""Analyze kitchen rental cost tracking:
+Daily Rental Rate: ${daily_rental}/day
+Utilization Rate: {utilization_rate:.1%}
+Actual Revenue: ${actual_rental_revenue:.2f}/day
+Capital Stock: ${self.system_state['nonprofit_capital_stock']:.2f}
+Kitchen Capacity: {kitchen_loop.current_state['kitchen_capacity'] if kitchen_loop else 1.0}
+
+Provide analysis of:
+1. Cost efficiency vs revenue
+2. Utilization optimization
+3. Capital impact assessment
+4. Rental sustainability
+
+Format: Brief cost analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="llama3.2:1b",
+                messages=[{"role": "user", "content": kitchen_prompt}],
+                options={"temperature": 0.2, "num_predict": 120}
+            )
+
+            cost_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-llama3.2:1b kitchen analysis failed: {e}")
+            cost_analysis = f"Kitchen rental: ${actual_rental_revenue:.2f}/day revenue at {utilization_rate:.1%} utilization. Capital impact: ${self.system_state['nonprofit_capital_stock']:.2f}."
+
+        # Calculate fitness impact
+        rental_efficiency = actual_rental_revenue / daily_rental if daily_rental > 0 else 0.0
+        capital_growth_rate = actual_rental_revenue / max(1.0, self.system_state["nonprofit_capital_stock"]) if self.system_state["nonprofit_capital_stock"] > 0 else actual_rental_revenue / 100.0
+        fitness_impact = (rental_efficiency * 0.7) + (capital_growth_rate * 0.3)
+
+        return {
+            "kitchen_rental": {
+                "daily_rate": daily_rental,
+                "utilization_rate": utilization_rate,
+                "actual_revenue": actual_rental_revenue,
+                "efficiency": rental_efficiency
+            },
+            "capital_impact": {
+                "capital_stock": self.system_state["nonprofit_capital_stock"],
+                "growth_rate": capital_growth_rate,
+                "fitness_impact": fitness_impact
+            },
+            "sd_loop_state": kitchen_loop.current_state if kitchen_loop else {},
+            "ollama_analysis": cost_analysis
+        }
+
+    async def simulate_usda_loan_flows(self, capital_stock: float = 0.0, building_need: float = 200000.0) -> Dict[str, Any]:
+        """Simulate USDA loan system SD flows with Ollama-qwen2.5 loan calculations"""
+
+        # Calculate loan eligibility and amounts
+        rbdg_max = min(self.system_state["usda_loan_available"], 500000.0)  # RBDG $10K-$500K
+        community_facilities_grant_rate = self.system_state["community_facilities_grant"]  # 75% for underserved
+
+        # Calculate loan application based on capital stock and need
+        loan_need = max(0.0, building_need - capital_stock)
+        loan_application = min(loan_need, rbdg_max)
+
+        # Simulate loan approval (85% approval rate for underserved rural areas)
+        approval_rate = 0.85
+        approved_amount = loan_application * approval_rate
+
+        # Calculate Community Facilities grant component (75% of approved amount)
+        grant_component = approved_amount * community_facilities_grant_rate
+        loan_component = approved_amount - grant_component
+
+        # Update system state
+        self.system_state["loan_applications_pending"] = loan_application
+        self.system_state["approved_loan_amount"] = approved_amount
+        self.system_state["loan_utilization_rate"] = approved_amount / max(1.0, rbdg_max)
+        self.system_state["loan_repayment_capacity"] = capital_stock * 0.1  # 10% of capital for repayment
+
+        # Update loan feedback loops
+        rbdg_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "usda_rbdg_loans"), None)
+        facilities_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "community_facilities_grants"), None)
+        bank_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "bank_loan_integration"), None)
+
+        if rbdg_loop:
+            rbdg_loop.current_state["loan_applications_pending"] = loan_application
+            rbdg_loop.current_state["approved_loan_amount"] = approved_amount
+
+        if facilities_loop:
+            facilities_loop.current_state["grant_funding"] = grant_component
+
+        if bank_loop:
+            bank_loop.current_state["nonprofit_capital_stock"] = capital_stock
+            bank_loop.current_state["approved_loan_amount"] = approved_amount
+
+        # Use Ollama-qwen2.5 for loan analysis
+        try:
+            loan_prompt = f"""Analyze USDA loan system for rural non-profit food processing:
+
+Loan Application: ${loan_application:,.0f}
+Approved Amount: ${approved_amount:,.0f}
+Grant Component: ${grant_component:,.0f} (75% for underserved)
+Loan Component: ${loan_component:,.0f} (0% interest RBDG)
+Building Target: ${building_need:,.0f}
+Capital Stock: ${capital_stock:,.0f}
+Repayment Capacity: ${self.system_state['loan_repayment_capacity']:,.0f}/month
+
+Programs:
+- RBDG: $10K-$500K at 0% interest
+- Community Facilities: Up to 75% grant for underserved areas
+- Matching waived for underserved rural communities
+
+Provide analysis of:
+1. Loan approval likelihood
+2. Grant vs loan optimization
+3. Repayment sustainability
+4. Building funding adequacy
+
+Format: Brief loan analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5:latest",
+                messages=[{"role": "user", "content": loan_prompt}],
+                options={"temperature": 0.3, "num_predict": 150}
+            )
+
+            loan_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 loan analysis failed: {e}")
+            loan_analysis = f"USDA loans: ${approved_amount:,.0f} approved (${grant_component:,.0f} grant, ${loan_component:,.0f} loan at 0%). Building funding: {(approved_amount/building_need)*100:.0f}% of target."
+
+        # Calculate loan system efficiency
+        funding_adequacy = approved_amount / building_need if building_need > 0 else 1.0
+        grant_efficiency = grant_component / approved_amount if approved_amount > 0 else 0.0
+        repayment_sustainability = self.system_state["loan_repayment_capacity"] / max(1.0, loan_component * 0.05) if loan_component > 0 else 1.0  # 5% annual payment
+        overall_efficiency = (funding_adequacy * 0.4) + (grant_efficiency * 0.3) + (min(1.0, repayment_sustainability) * 0.3)
+
+        return {
+            "loan_summary": {
+                "application_amount": loan_application,
+                "approved_amount": approved_amount,
+                "grant_component": grant_component,
+                "loan_component": loan_component,
+                "approval_rate": approval_rate,
+                "utilization_rate": self.system_state["loan_utilization_rate"]
+            },
+            "funding_breakdown": {
+                "rbdg_available": rbdg_max,
+                "community_facilities_rate": community_facilities_grant_rate,
+                "building_target": building_need,
+                "funding_gap": max(0.0, building_need - approved_amount),
+                "funding_adequacy": funding_adequacy
+            },
+            "repayment_analysis": {
+                "monthly_capacity": self.system_state["loan_repayment_capacity"],
+                "sustainability_ratio": repayment_sustainability,
+                "interest_rate": self.system_state["loan_interest_rate"]
+            },
+            "system_efficiency": {
+                "overall_efficiency": overall_efficiency,
+                "grant_efficiency": grant_efficiency,
+                "funding_adequacy": funding_adequacy
+            },
+            "sd_loop_states": {
+                "rbdg_loop": rbdg_loop.current_state if rbdg_loop else {},
+                "facilities_loop": facilities_loop.current_state if facilities_loop else {},
+                "bank_loop": bank_loop.current_state if bank_loop else {}
+            },
+            "ollama_analysis": loan_analysis
+        }
+
+    async def simulate_state_license_fee(self, current_capital: float = 0.0, days_elapsed: int = 0) -> Dict[str, Any]:
+        """Simulate state license fee SD flow with Ollama-qwen2.5 fee impact analysis"""
+
+        # Calculate license fee obligations
+        annual_fee = self.system_state["state_license_fee_annual"]
+        days_until_renewal = max(0, self.system_state["license_renewal_due"] - days_elapsed)
+
+        # Determine if fee payment is due (within 30 days of renewal)
+        fee_due_soon = days_until_renewal <= 30
+
+        # Calculate fee payment capacity
+        fee_payment_capacity = current_capital >= annual_fee
+
+        # Update compliance based on payment capacity and timing
+        if fee_due_soon and not fee_payment_capacity:
+            compliance_penalty = 0.2  # 20% compliance reduction if can't pay
+            self.system_state["license_compliance_rate"] = max(0.0, self.system_state["license_compliance_rate"] - compliance_penalty)
+        elif fee_payment_capacity and fee_due_soon:
+            # Pay the fee and reset renewal cycle
+            self.system_state["license_fee_paid"] = annual_fee
+            self.system_state["license_renewal_due"] = 365  # Reset to next year
+            self.system_state["license_compliance_rate"] = 1.0  # Full compliance
+
+        # Update license feedback loop
+        license_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "state_license_fee"), None)
+        if license_loop:
+            license_loop.current_state["license_compliance_rate"] = self.system_state["license_compliance_rate"]
+            license_loop.current_state["nonprofit_capital_stock"] = current_capital
+            license_loop.current_state["license_renewal_due"] = days_until_renewal
+
+        # Use Ollama-qwen2.5 for license fee impact analysis
+        try:
+            license_prompt = f"""Analyze state license fee impact for rural non-profit bakery:
+
+Annual License Fee: ${annual_fee}/year
+Current Capital: ${current_capital:,.2f}
+Days Until Renewal: {days_until_renewal} days
+Payment Capacity: {'Yes' if fee_payment_capacity else 'No'}
+Compliance Rate: {self.system_state['license_compliance_rate']:.1%}
+Fee Status: {'Due Soon' if fee_due_soon else 'Not Due'}
+
+License Requirements:
+- State food processing license: $200/year
+- Required for legal operation
+- Non-compliance risks shutdown
+- Tied to pre-order registry system
+
+Provide analysis of:
+1. Fee payment sustainability
+2. Compliance risk assessment
+3. Capital allocation impact
+4. Operational continuity
+
+Format: Brief fee impact analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5:latest",
+                messages=[{"role": "user", "content": license_prompt}],
+                options={"temperature": 0.3, "num_predict": 120}
+            )
+
+            fee_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 license analysis failed: {e}")
+            fee_analysis = f"State license: ${annual_fee}/year fee, {self.system_state['license_compliance_rate']:.1%} compliance, {days_until_renewal} days until renewal. Payment capacity: {'adequate' if fee_payment_capacity else 'insufficient'}."
+
+        # Calculate fee impact on operations
+        operational_impact = 1.0 - (0.3 * (1.0 - self.system_state["license_compliance_rate"]))  # 30% impact if non-compliant
+        capital_burden = annual_fee / max(1.0, current_capital) if current_capital > 0 else 1.0
+        sustainability_score = min(1.0, current_capital / (annual_fee * 2))  # Can pay 2 years ahead
+
+        return {
+            "license_summary": {
+                "annual_fee": annual_fee,
+                "days_until_renewal": days_until_renewal,
+                "fee_due_soon": fee_due_soon,
+                "payment_capacity": fee_payment_capacity,
+                "compliance_rate": self.system_state["license_compliance_rate"],
+                "fee_paid": self.system_state["license_fee_paid"]
+            },
+            "impact_analysis": {
+                "operational_impact": operational_impact,
+                "capital_burden": capital_burden,
+                "sustainability_score": sustainability_score,
+                "compliance_risk": 1.0 - self.system_state["license_compliance_rate"]
+            },
+            "sd_loop_state": license_loop.current_state if license_loop else {},
+            "ollama_analysis": fee_analysis
         }
 
     async def simulate_outreach_b2b_blending(self, outreach_events: List[str], b2b_profiles: List[Any],
@@ -1610,6 +2562,681 @@ Provide granular optimization recommendations."""
                 "demand_target": "200+ units/day",
                 "demand_actual": f"{total_daily_units} units/day"
             }
+        }
+
+    def calculate_kitchen_depreciation(self) -> float:
+        """Calculate annual depreciation for right-sized kitchen assets"""
+        total_depreciation = 0.0
+        for asset_name, asset_data in self.kitchen_assets.items():
+            annual_depreciation = asset_data["total_cost"] / asset_data["depreciation_years"]
+            total_depreciation += annual_depreciation
+        return total_depreciation
+
+    async def simulate_kitchen_financing(self) -> Dict[str, Any]:
+        """Simulate kitchen financing through RBDG grants and loans"""
+        try:
+            # Calculate kitchen costs and financing needs
+            kitchen_cost = self.kitchen_metrics["total_asset_value"]
+            annual_depreciation = self.calculate_kitchen_depreciation()
+            annual_operating = (self.kitchen_metrics["maintenance_cost_annual"] +
+                              self.kitchen_metrics["insurance_cost_annual"] +
+                              self.kitchen_metrics["utility_cost_monthly"] * 12)
+
+            # RBDG grant eligibility (up to $500K, 0% interest)
+            rbdg_eligible = min(kitchen_cost, 500000)  # Max $500K
+            rbdg_grant_portion = rbdg_eligible * 0.75  # 75% grant for underserved areas
+            rbdg_loan_portion = rbdg_eligible * 0.25   # 25% loan at 0% interest
+
+            # Use Ollama-qwen2.5 for cost calculations
+            cost_prompt = f"""Kitchen financing analysis:
+Assets: $47K (2 ovens $20K, 2 mixers $10K, 2 refrigerators $8K, proofing room $5K, 10 racks $2K, decoration $3K, 2 display cases $4K, tables/chairs $5K, 2 prep tables $3K, 2 sinks $2K, washing area $3K)
+Annual: Depreciation ${annual_depreciation:.0f}, Operating ${annual_operating:.0f}
+RBDG: Grant ${rbdg_grant_portion:.0f}, Loan ${rbdg_loan_portion:.0f} at 0%
+Calculate coverage and burden. Brief analysis (2 sentences)."""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": cost_prompt}],
+                options={"temperature": 0.2, "num_predict": 80}
+            )
+
+            kitchen_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 kitchen analysis failed: {e}")
+            kitchen_analysis = f"Kitchen financing: ${rbdg_grant_portion:.0f} grant + ${rbdg_loan_portion:.0f} loan covers ${kitchen_cost} assets. Annual burden: ${annual_depreciation + annual_operating:.0f}."
+
+        # Calculate fitness impact
+        coverage_ratio = (rbdg_grant_portion + rbdg_loan_portion) / kitchen_cost
+        fitness_impact = coverage_ratio * 0.8  # High weight on financing coverage
+
+        return {
+            "kitchen_assets": {
+                "total_cost": kitchen_cost,
+                "asset_count": len(self.kitchen_assets),
+                "major_equipment_cost": 38000  # Ovens + mixers + refrigerators
+            },
+            "financing": {
+                "rbdg_grant": rbdg_grant_portion,
+                "rbdg_loan": rbdg_loan_portion,
+                "coverage_percentage": coverage_ratio * 100
+            },
+            "annual_costs": {
+                "depreciation": annual_depreciation,
+                "operating": annual_operating,
+                "total_annual": annual_depreciation + annual_operating
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": kitchen_analysis
+        }
+
+    async def simulate_extended_kitchen_costs(self) -> Dict[str, Any]:
+        """Simulate extended kitchen costs with SD loops and Ollama-qwen2.5 analysis"""
+        try:
+            # Calculate total extended kitchen investment
+            total_extended_cost = self.kitchen_metrics["extended_kitchen_value"]
+            total_kitchen_cost = self.kitchen_metrics["total_asset_value"]
+            annual_licenses = self.kitchen_metrics["license_fees_annual"]
+            monthly_services = self.kitchen_metrics["monthly_services"]
+
+            # RBDG grant coverage for extended kitchen
+            rbdg_coverage = min(total_kitchen_cost, 500000)  # Max $500K
+            grant_portion = rbdg_coverage * 0.75  # 75% grant
+            loan_portion = rbdg_coverage * 0.25   # 25% loan at 0%
+
+            # Calculate productivity impact from extended items
+            productivity_boost = 0.159  # 15.9% average from Observer research
+            revenue_impact = total_kitchen_cost * productivity_boost * 0.1  # Conservative estimate
+
+            # Use Ollama-qwen2.5 for cost calculations
+            cost_prompt = f"""Extended kitchen cost analysis for non-profit bakery:
+
+Original Kitchen: ${self.kitchen_metrics["original_kitchen_value"]:,}
+Extended Items: ${total_extended_cost:,}
+Total Investment: ${total_kitchen_cost:,}
+
+Extended Equipment:
+- Meat processing: ${self.extended_kitchen_costs["meat_processing"]:,}
+- Cooking expansion: ${self.extended_kitchen_costs["cooking_expansion"]:,}
+- Storage enhancement: ${self.extended_kitchen_costs["storage_enhancement"]:,}
+- Technology systems: ${self.extended_kitchen_costs["technology_systems"]:,}
+
+Annual Costs:
+- Licenses: ${annual_licenses}/year
+- Services: ${monthly_services * 12}/year
+
+RBDG Financing:
+- Grant: ${grant_portion:,.0f}
+- Loan: ${loan_portion:,.0f} at 0%
+
+Productivity boost: {productivity_boost:.1%}
+Revenue impact: ${revenue_impact:,.0f}/year
+
+Calculate financing efficiency and cost burden.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": cost_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            cost_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 extended kitchen analysis failed: {e}")
+            cost_analysis = f"Extended kitchen: ${total_extended_cost:,} adds {productivity_boost:.1%} productivity. RBDG covers ${grant_portion:,.0f} grant + ${loan_portion:,.0f} loan. Annual burden: ${annual_licenses + monthly_services * 12:,}."
+
+        # Update extended kitchen feedback loop
+        extended_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "extended_kitchen_costs"), None)
+        if extended_loop:
+            investment_ratio = total_extended_cost / total_kitchen_cost
+            coverage_ratio = (grant_portion + loan_portion) / total_kitchen_cost
+            extended_loop.current_state["extended_kitchen_investment"] = investment_ratio
+            extended_loop.current_state["grant_coverage"] = coverage_ratio
+            extended_loop.current_state["productivity_boost"] = productivity_boost
+
+        # Calculate fitness impact
+        cost_efficiency = productivity_boost / (total_extended_cost / 100000)  # Per $100K
+        financing_efficiency = (grant_portion + loan_portion) / total_kitchen_cost
+        fitness_impact = (cost_efficiency * 0.6) + (financing_efficiency * 0.4)
+
+        return {
+            "extended_costs": {
+                "total_extended": total_extended_cost,
+                "total_kitchen": total_kitchen_cost,
+                "cost_breakdown": self.extended_kitchen_costs,
+                "annual_licenses": annual_licenses,
+                "monthly_services": monthly_services
+            },
+            "financing": {
+                "rbdg_grant": grant_portion,
+                "rbdg_loan": loan_portion,
+                "total_coverage": grant_portion + loan_portion,
+                "coverage_percentage": financing_efficiency * 100
+            },
+            "productivity": {
+                "boost_percentage": productivity_boost * 100,
+                "revenue_impact": revenue_impact,
+                "cost_efficiency": cost_efficiency
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": cost_analysis
+        }
+
+    async def simulate_operating_cash_reserve(self, monthly_donations: float = 4167) -> Dict[str, Any]:
+        """Simulate 6-month operating cash reserve with SD loops and Ollama-qwen2.5 analysis"""
+        try:
+            # Calculate total monthly expenses
+            total_monthly = sum(self.monthly_expenses[key] for key in self.monthly_expenses if key != "total_monthly")
+            self.monthly_expenses["total_monthly"] = total_monthly
+
+            # Calculate 6-month reserve requirements
+            reserve_target = total_monthly * self.operating_cash_reserve["target_months"]
+            reserve_min = self.operating_cash_reserve["reserve_min"]
+            reserve_max = self.operating_cash_reserve["reserve_max"]
+
+            # Calculate funding from donations (20% allocation)
+            donation_funding = monthly_donations * 12 * self.operating_cash_reserve["funding_sources"]["donations_percentage"]
+            months_to_fund = reserve_target / (donation_funding / 12) if donation_funding > 0 else float('inf')
+
+            # Use Ollama-qwen2.5 for cash reserve analysis
+            cash_prompt = f"""Operating cash reserve analysis for non-profit bakery:
+
+Monthly Expenses Breakdown:
+- License fees: ${self.monthly_expenses['license_fees']}/month
+- Website: ${self.monthly_expenses['website']}/month
+- Delivery: ${self.monthly_expenses['delivery']}/month
+- Labor: ${self.monthly_expenses['labor']}/month
+- Ingredients: ${self.monthly_expenses['ingredients']}/month
+- Utilities: ${self.monthly_expenses['utilities']}/month
+- Mortgage: ${self.monthly_expenses['mortgage']}/month
+- Maintenance: ${self.monthly_expenses['maintenance_monthly']}/month
+- Taxes: ${self.monthly_expenses['taxes_monthly']}/month
+Total Monthly: ${total_monthly}
+
+Reserve Requirements:
+- 6-month target: ${reserve_target:,.0f}
+- Range: ${reserve_min:,}-${reserve_max:,}
+
+Funding:
+- Monthly donations: ${monthly_donations:,.0f}
+- Annual donations: ${monthly_donations * 12:,.0f}
+- 20% allocation: ${donation_funding:,.0f}
+- Months to fund: {months_to_fund:.1f}
+
+Calculate cash flow sustainability and reserve adequacy.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": cash_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            cash_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 cash reserve analysis failed: {e}")
+            cash_analysis = f"Operating cash: ${reserve_target:,.0f} target (6 months × ${total_monthly:,}). Funding: ${donation_funding:,.0f}/year from donations. Time to fund: {months_to_fund:.1f} months."
+
+        # Update operating cash feedback loop
+        cash_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "operating_cash_reserve"), None)
+        if cash_loop:
+            reserve_ratio = min(1.0, reserve_target / reserve_max)
+            expense_ratio = total_monthly / self.operating_cash_reserve["monthly_expenses_max"]
+            funding_ratio = min(1.0, donation_funding / self.operating_cash_reserve["funding_sources"]["target_from_donations"])
+
+            cash_loop.current_state["cash_reserve_level"] = reserve_ratio
+            cash_loop.current_state["monthly_expenses"] = expense_ratio
+            cash_loop.current_state["donation_funding"] = funding_ratio
+            cash_loop.current_state["financial_stability"] = (reserve_ratio + funding_ratio) / 2
+
+        # Calculate fitness impact
+        reserve_adequacy = min(1.0, reserve_target / reserve_max)
+        funding_sustainability = min(1.0, donation_funding / (total_monthly * 12))
+        fitness_impact = (reserve_adequacy * 0.6) + (funding_sustainability * 0.4)
+
+        return {
+            "monthly_expenses": {
+                "breakdown": self.monthly_expenses,
+                "total": total_monthly,
+                "annual": total_monthly * 12
+            },
+            "reserve_requirements": {
+                "target_months": self.operating_cash_reserve["target_months"],
+                "target_amount": reserve_target,
+                "min_amount": reserve_min,
+                "max_amount": reserve_max
+            },
+            "funding": {
+                "monthly_donations": monthly_donations,
+                "annual_donations": monthly_donations * 12,
+                "allocation_percentage": self.operating_cash_reserve["funding_sources"]["donations_percentage"] * 100,
+                "annual_funding": donation_funding,
+                "months_to_fund": months_to_fund
+            },
+            "sustainability": {
+                "reserve_adequacy": reserve_adequacy,
+                "funding_sustainability": funding_sustainability,
+                "financial_stability": (reserve_adequacy + funding_sustainability) / 2
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": cash_analysis
+        }
+
+    async def simulate_free_output_compliance(self, food_bank_demand: Dict[str, int] = None) -> Dict[str, Any]:
+        """Simulate 50% free output for grant compliance with SD loops and Ollama-qwen2.5 analysis"""
+        if food_bank_demand is None:
+            food_bank_demand = {"bread_loaves": 300, "flour_lbs": 400}  # Conservative estimate
+
+        try:
+            # Calculate free output metrics
+            bread_output = self.free_output_system["bread_output"]
+            flour_output = self.free_output_system["flour_output"]
+
+            # Calculate overproduction and rerouting
+            excess_bread = max(0, bread_output["daily_loaves"] - food_bank_demand["bread_loaves"])
+            excess_flour = max(0, flour_output["total_flour_lbs"] - food_bank_demand["flour_lbs"])
+
+            # Calculate costs and value
+            total_free_value = self.free_output_system["total_daily_value"]
+            total_free_cost = self.free_output_system["total_daily_cost"]
+
+            # Rerouting revenue (excess sold at retail/B2B)
+            rerouting_revenue = (excess_bread * 5.0) + (excess_flour * 1.10)  # Conservative pricing
+
+            # Use Ollama-qwen2.5 for compliance analysis
+            compliance_prompt = f"""Free output compliance analysis for non-profit bakery:
+
+50% Free Output Target:
+- Bread: {bread_output['daily_loaves']} loaves/day (${bread_output['daily_value']:,} value)
+- Flour: {flour_output['total_flour_lbs']} lbs/day (${flour_output['total_flour_value']:,} value)
+- Total Value: ${total_free_value:,}/day
+- Total Cost: ${total_free_cost:,.2f}/day
+
+Food Bank Demand:
+- Bread needed: {food_bank_demand['bread_loaves']} loaves/day
+- Flour needed: {food_bank_demand['flour_lbs']} lbs/day
+
+Excess Production:
+- Bread excess: {excess_bread} loaves/day
+- Flour excess: {excess_flour} lbs/day
+- Rerouting revenue: ${rerouting_revenue:,.0f}/day
+
+Grant Compliance: {len(self.free_output_system['grant_compliance'])} programs
+Cost efficiency: {((total_free_value - total_free_cost) / total_free_value):.1%}
+
+Calculate compliance effectiveness and cost impact.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": compliance_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            compliance_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 free output analysis failed: {e}")
+            compliance_analysis = f"Free output: {bread_output['daily_loaves']} loaves, {flour_output['total_flour_lbs']} lbs flour/day. Value: ${total_free_value:,}. Cost: ${total_free_cost:,.0f}. Excess rerouted: ${rerouting_revenue:,.0f}."
+
+        # Update free output feedback loop
+        free_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "free_output_compliance"), None)
+        if free_loop:
+            compliance_ratio = min(1.0, (bread_output["daily_loaves"] + flour_output["total_flour_lbs"]) /
+                                 (food_bank_demand["bread_loaves"] + food_bank_demand["flour_lbs"]))
+            cost_efficiency = (total_free_value - total_free_cost) / total_free_value
+
+            free_loop.current_state["compliance_percentage"] = 0.50
+            free_loop.current_state["grant_requirements"] = 0.50
+            free_loop.current_state["food_bank_capacity"] = min(1.0, compliance_ratio)
+            free_loop.current_state["cost_efficiency"] = cost_efficiency
+
+        # Calculate fitness impact
+        compliance_effectiveness = min(1.0, total_free_value / (total_free_cost * 2))  # 2x cost coverage
+        grant_alignment = len(self.free_output_system["grant_compliance"]) / 5  # 5 total grants
+        fitness_impact = (compliance_effectiveness * 0.7) + (grant_alignment * 0.3)
+
+        return {
+            "free_output": {
+                "bread_loaves": bread_output["daily_loaves"],
+                "flour_lbs": flour_output["total_flour_lbs"],
+                "total_value": total_free_value,
+                "total_cost": total_free_cost,
+                "cost_efficiency": (total_free_value - total_free_cost) / total_free_value
+            },
+            "food_bank_alignment": {
+                "bread_demand": food_bank_demand["bread_loaves"],
+                "flour_demand": food_bank_demand["flour_lbs"],
+                "excess_bread": excess_bread,
+                "excess_flour": excess_flour,
+                "rerouting_revenue": rerouting_revenue
+            },
+            "grant_compliance": {
+                "compliance_percentage": 50.0,
+                "grants_covered": self.free_output_system["grant_compliance"],
+                "reporting_frequency": self.free_output_system["reporting_frequency"]
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": compliance_analysis
+        }
+
+    async def simulate_reporting_compliance(self) -> Dict[str, Any]:
+        """Simulate comprehensive reporting for grant compliance with SD loops and Ollama-qwen2.5 analysis"""
+        try:
+            # Calculate annual metrics
+            annual_financials = self.reporting_system["annual_financials"]
+            grant_metrics = self.reporting_system["grant_compliance_metrics"]
+
+            # Calculate compliance rates
+            free_output_compliance = grant_metrics["free_output_percentage"]
+            meals_served = grant_metrics["total_meals_equivalent"]
+            revenue_to_community = grant_metrics["free_output_annual_value"]
+
+            # Calculate reporting efficiency
+            reports_per_year = 12 + 4 + 1  # Monthly + Quarterly + Annual = 17 reports
+            compliance_programs = len(self.reporting_system["grant_programs"])
+
+            # Use Ollama-qwen2.5 for reporting analysis
+            reporting_prompt = f"""Grant compliance reporting analysis for non-profit bakery:
+
+Annual Financials:
+- Total Revenue: ${annual_financials['total_revenue']:,}/year
+- Bread Revenue: ${annual_financials['bread_revenue']:,}/year (77.9%)
+- Flour Revenue: ${annual_financials['flour_revenue']:,}/year (22.1%)
+- Total Profit: ${annual_financials['total_profit']:,}/year
+- Profit Margin: {annual_financials['profit_margin']:.1%}
+
+Grant Compliance Metrics:
+- Free Output Value: ${grant_metrics['free_output_annual_value']:,}/year
+- Free Output Percentage: {grant_metrics['free_output_percentage']:.0%}
+- Bread Loaves Served: {grant_metrics['bread_loaves_served']:,}/year
+- Flour Pounds Served: {grant_metrics['flour_lbs_served']:,}/year
+- Total Meals Equivalent: {grant_metrics['total_meals_equivalent']:,}/year
+- Families Served: {grant_metrics['families_served']}
+- Individuals Served: {grant_metrics['individuals_served']}
+
+Grant Programs: {compliance_programs} (CFPCGP, LFPP, VAPG, Organic Market)
+Reporting Schedule: {reports_per_year} reports/year
+Compliance Rate: {grant_metrics['compliance_rate']:.0%}
+
+Calculate reporting effectiveness and grant impact.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": reporting_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            reporting_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 reporting analysis failed: {e}")
+            reporting_analysis = f"Reporting: {reports_per_year} reports/year for {compliance_programs} grants. Free output: ${revenue_to_community:,}/year ({free_output_compliance:.0%}). Meals served: {meals_served:,}/year."
+
+        # Update reporting compliance feedback loop
+        reporting_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "reporting_compliance"), None)
+        if reporting_loop:
+            compliance_effectiveness = grant_metrics["compliance_rate"]
+            reporting_efficiency = min(1.0, reports_per_year / 20)  # Target 20 reports/year max
+            audit_readiness = min(1.0, revenue_to_community / 1000000)  # $1M+ shows strong program
+
+            reporting_loop.current_state["compliance_rate"] = compliance_effectiveness
+            reporting_loop.current_state["reporting_accuracy"] = 0.95
+            reporting_loop.current_state["grant_requirements"] = free_output_compliance
+            reporting_loop.current_state["audit_readiness"] = audit_readiness
+
+        # Calculate fitness impact
+        compliance_strength = grant_metrics["compliance_rate"]
+        financial_sustainability = min(1.0, annual_financials["profit_margin"])
+        community_impact = min(1.0, meals_served / 500000)  # Target 500K meals/year
+        fitness_impact = (compliance_strength * 0.4) + (financial_sustainability * 0.3) + (community_impact * 0.3)
+
+        return {
+            "annual_financials": {
+                "total_revenue": annual_financials["total_revenue"],
+                "total_profit": annual_financials["total_profit"],
+                "profit_margin": annual_financials["profit_margin"],
+                "bread_percentage": annual_financials["bread_revenue"] / annual_financials["total_revenue"],
+                "flour_percentage": annual_financials["flour_revenue"] / annual_financials["total_revenue"]
+            },
+            "grant_compliance": {
+                "free_output_value": grant_metrics["free_output_annual_value"],
+                "free_output_percentage": grant_metrics["free_output_percentage"] * 100,
+                "meals_served": grant_metrics["total_meals_equivalent"],
+                "compliance_rate": grant_metrics["compliance_rate"] * 100,
+                "programs_covered": compliance_programs
+            },
+            "reporting_metrics": {
+                "reports_per_year": reports_per_year,
+                "monthly_reports": 12,
+                "quarterly_reports": 4,
+                "annual_reports": 1,
+                "compliance_programs": compliance_programs
+            },
+            "community_impact": {
+                "families_served": grant_metrics["families_served"],
+                "individuals_served": grant_metrics["individuals_served"],
+                "bread_loaves_annual": grant_metrics["bread_loaves_served"],
+                "flour_lbs_annual": grant_metrics["flour_lbs_served"]
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": reporting_analysis
+        }
+
+    async def simulate_meat_locker_operations(self) -> Dict[str, Any]:
+        """Simulate meat locker operations with SD loops and Ollama-qwen2.5 analysis"""
+        try:
+            # Calculate meat processing metrics
+            meat_system = self.meat_locker_system
+            processing = meat_system["processing_schedule"]
+            allocation = meat_system["product_allocation"]
+            efficiency = meat_system["efficiency_metrics"]
+
+            # Calculate daily operations
+            daily_yield = processing["daily_yield"]
+            daily_cost = processing["weekly_meat_cost"] / 7  # $500/week ÷ 7 = $71.43/day
+            annual_total_cost = processing["annual_meat_cost"] + meat_system["annual_maintenance"]
+
+            # Calculate product distribution
+            empanada_meat_daily = allocation["empanadas"] / 7  # 28.6 lbs/day
+            meat_pie_daily = allocation["meat_pies"] / 7       # 10 lbs/day
+            other_daily = allocation["other_products"] / 7     # 4.3 lbs/day
+
+            # Use Ollama-qwen2.5 for meat locker analysis
+            meat_prompt = f"""Meat locker operations analysis for non-profit bakery:
+
+Meat Locker Specifications:
+- Capacity: {meat_system['capacity_lbs']} lbs whole animal storage
+- Temperature Control: {meat_system['temperature_control']} (97.2% consistency)
+- Processing: {processing['animals_per_week']} animal/week ({processing['lbs_per_animal']} lbs)
+- Daily Yield: {daily_yield:.1f} lbs/day
+- Cost: ${processing['cost_per_lb']}/lb (${daily_cost:.0f}/day)
+
+Product Allocation:
+- Empanadas: {empanada_meat_daily:.1f} lbs/day
+- Meat Pies: {meat_pie_daily:.1f} lbs/day
+- Other Products: {other_daily:.1f} lbs/day
+
+Efficiency Metrics:
+- Temperature Consistency: {efficiency['temperature_consistency']:.1%}
+- Spoilage Rate: {efficiency['spoilage_rate']:.1%}
+- Sanitation Score: {efficiency['sanitation_score']:.1%}
+
+Annual Costs: ${annual_total_cost:,} (meat + maintenance)
+Investment: ${meat_system['upfront_cost']:,} upfront
+
+Analyze meat processing efficiency and cost effectiveness.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[{"role": "user", "content": meat_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            meat_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-qwen2.5 meat locker analysis failed: {e}")
+            meat_analysis = f"Meat locker: {meat_system['capacity_lbs']} lbs capacity. Processing: {daily_yield:.1f} lbs/day. Cost: ${annual_total_cost:,}/year. Temperature: {meat_system['temperature_control']}."
+
+        # Update meat locker feedback loop
+        meat_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "meat_locker_operations"), None)
+        if meat_loop:
+            temp_efficiency = efficiency["temperature_consistency"]
+            processing_efficiency = efficiency["utilization_rate"]
+            sanitation_score = efficiency["sanitation_score"]
+            cost_effectiveness = min(1.0, (daily_yield * 2.5) / daily_cost)  # Target 2.5x cost coverage
+
+            meat_loop.current_state["temperature_control"] = temp_efficiency
+            meat_loop.current_state["meat_processing"] = processing_efficiency
+            meat_loop.current_state["sanitation_compliance"] = sanitation_score
+            meat_loop.current_state["cost_efficiency"] = cost_effectiveness
+
+        # Calculate fitness impact
+        operational_efficiency = (efficiency["temperature_consistency"] + efficiency["sanitation_score"]) / 2
+        cost_efficiency = min(1.0, daily_yield / (daily_cost / 2.5))  # Target efficiency
+        product_utilization = (empanada_meat_daily + meat_pie_daily) / daily_yield
+        fitness_impact = (operational_efficiency * 0.4) + (cost_efficiency * 0.3) + (product_utilization * 0.3)
+
+        return {
+            "meat_locker_specs": {
+                "capacity_lbs": meat_system["capacity_lbs"],
+                "temperature_control": meat_system["temperature_control"],
+                "upfront_cost": meat_system["upfront_cost"],
+                "annual_maintenance": meat_system["annual_maintenance"]
+            },
+            "daily_operations": {
+                "daily_yield": daily_yield,
+                "daily_cost": daily_cost,
+                "empanada_meat": empanada_meat_daily,
+                "meat_pie_meat": meat_pie_daily,
+                "other_products": other_daily
+            },
+            "efficiency_metrics": {
+                "temperature_consistency": efficiency["temperature_consistency"] * 100,
+                "spoilage_rate": efficiency["spoilage_rate"] * 100,
+                "sanitation_score": efficiency["sanitation_score"] * 100,
+                "utilization_rate": efficiency["utilization_rate"] * 100
+            },
+            "annual_costs": {
+                "meat_cost": processing["annual_meat_cost"],
+                "maintenance_cost": meat_system["annual_maintenance"],
+                "total_cost": annual_total_cost
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": meat_analysis
+        }
+
+    async def simulate_butchers_station_operations(self) -> Dict[str, Any]:
+        """Simulate butcher's station operations with SD loops and Ollama-llama3.2:1b analysis"""
+        try:
+            # Calculate butcher's station metrics
+            station_system = self.butchers_station_system
+            processing = station_system["processing_capacity"]
+            sanitation = station_system["sanitation_protocols"]
+            integration = station_system["integration_benefits"]
+
+            # Calculate daily operations
+            daily_processing = processing["daily_processing"]
+            processing_time = processing["processing_time"]
+            efficiency_rate = processing["efficiency_rate"]
+            waste_rate = processing["waste_rate"]
+
+            # Calculate integration benefits
+            temp_safety = integration["no_temp_compromise"]
+            contamination_reduction = integration["reduced_contamination"]
+            workflow_efficiency = integration["workflow_efficiency"]
+            annual_savings = integration["cost_savings"]
+
+            # Use Ollama-llama3.2:1b for butcher's station analysis
+            station_prompt = f"""Butcher's station operations for non-profit bakery:
+
+Station Specifications:
+- Cost: ${station_system['upfront_cost']:,} upfront (NSF certified)
+- Connection: {station_system['connection_type']} to meat locker
+- Processing: {daily_processing:.1f} lbs/day ({processing['weekly_processing']} lbs/week)
+- Efficiency: {efficiency_rate:.1%} processing rate
+- Waste: {waste_rate:.1%} processing waste
+
+Sanitation Protocols:
+- Cleaning: {sanitation['cleaning_frequency']}
+- Sanitizing: {sanitation['sanitizing_frequency']}
+- Temperature: {sanitation['temperature_checks']} monitoring
+- Compliance: {sanitation['compliance_rate']:.1%}
+
+Integration Benefits:
+- Temperature Safety: {temp_safety}
+- Contamination Reduction: {contamination_reduction:.1%}
+- Workflow Efficiency: {workflow_efficiency:.1%}
+- Annual Savings: ${annual_savings}
+
+Analyze butcher station efficiency and food safety compliance.
+Format: Brief analysis (2-3 sentences)"""
+
+            response = ollama.chat(
+                model="llama3.2:1b",
+                messages=[{"role": "user", "content": station_prompt}],
+                options={"temperature": 0.2, "num_predict": 100}
+            )
+
+            station_analysis = response['message']['content'].strip()
+
+        except Exception as e:
+            logger.warning(f"Ollama-llama3.2:1b butcher station analysis failed: {e}")
+            station_analysis = f"Butcher station: ${station_system['upfront_cost']:,} NSF certified. Processing: {daily_processing:.1f} lbs/day. Sanitation: {sanitation['compliance_rate']:.1%} compliance."
+
+        # Update butcher's station feedback loop
+        station_loop = next((loop for loop in self.feedback_loops if loop.loop_id == "butchers_station_sanitation"), None)
+        if station_loop:
+            sanitation_score = sanitation["compliance_rate"]
+            processing_eff = processing["efficiency_rate"]
+            equipment_score = 0.92  # Based on NSF certification and maintenance
+            workflow_score = integration["workflow_efficiency"]
+
+            station_loop.current_state["sanitation_compliance"] = sanitation_score
+            station_loop.current_state["processing_efficiency"] = processing_eff
+            station_loop.current_state["equipment_maintenance"] = equipment_score
+            station_loop.current_state["workflow_integration"] = workflow_score
+
+        # Calculate fitness impact
+        safety_compliance = sanitation["compliance_rate"]
+        processing_efficiency = processing["efficiency_rate"]
+        integration_efficiency = integration["workflow_efficiency"]
+        cost_effectiveness = min(1.0, annual_savings / station_system["upfront_cost"])
+        fitness_impact = (safety_compliance * 0.4) + (processing_efficiency * 0.3) + (integration_efficiency * 0.2) + (cost_effectiveness * 0.1)
+
+        return {
+            "station_specs": {
+                "upfront_cost": station_system["upfront_cost"],
+                "nsf_certified": station_system["nsf_certified"],
+                "connection_type": station_system["connection_type"],
+                "equipment_count": len(station_system["equipment_specs"])
+            },
+            "daily_operations": {
+                "daily_processing": daily_processing,
+                "processing_time": processing_time,
+                "efficiency_rate": efficiency_rate * 100,
+                "waste_rate": waste_rate * 100
+            },
+            "sanitation_metrics": {
+                "compliance_rate": sanitation["compliance_rate"] * 100,
+                "cleaning_frequency": sanitation["cleaning_frequency"],
+                "sanitizing_frequency": sanitation["sanitizing_frequency"],
+                "inspection_ready": sanitation["inspection_ready"]
+            },
+            "integration_benefits": {
+                "temperature_safety": temp_safety,
+                "contamination_reduction": contamination_reduction * 100,
+                "workflow_efficiency": workflow_efficiency * 100,
+                "annual_savings": annual_savings
+            },
+            "fitness_impact": fitness_impact,
+            "ollama_analysis": station_analysis
         }
 
 

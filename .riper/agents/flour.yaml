@@ -1,0 +1,94 @@
+# Flour Products Configuration for Tonasket Simulation
+# Retail/B2B flour sales with 10% donation back
+
+flour_products:
+  20_lb_bags:
+    weight_lbs: 20
+    retail_price: 20.00      # $20/bag
+    price_per_lb: 1.00       # $1/lb retail
+    cost_per_lb: 0.11        # $0.11/lb production cost
+    cost_per_bag: 2.20       # $2.20/bag total cost
+    margin_per_bag: 17.80    # $17.80 profit per bag
+    daily_target: 50         # 50 bags/day
+    
+    donation_program:
+      percentage: 10         # 10% of sales donated back
+      donation_per_bag: 2.00 # $2/bag donated
+      recipients: ["Tonasket Food Bank", "Local Families"]
+      
+    b2b_customers:
+      - "Starbucks Tonasket"
+      - "Hometown Pizza"
+      - "Rocking Horse Bakery"
+      - "Local Restaurants"
+      
+  5_lb_bags:
+    weight_lbs: 5
+    retail_price: 6.00       # $6/bag
+    price_per_lb: 1.20       # $1.20/lb retail
+    cost_per_lb: 0.11        # $0.11/lb production cost
+    cost_per_bag: 0.55       # $0.55/bag total cost
+    margin_per_bag: 5.45     # $5.45 profit per bag
+    daily_target: 100        # 100 bags/day
+    
+    donation_program:
+      percentage: 10         # 10% of sales donated back
+      donation_per_bag: 0.60 # $0.60/bag donated
+      recipients: ["Tonasket Food Bank", "Senior Center"]
+      
+    b2b_customers:
+      - "Starbucks Tonasket"
+      - "Local Restaurants"
+      - "Farmers Market Vendors"
+      - "Home Bakers"
+
+production_metrics:
+  total_daily_bags: 150      # 50 + 100 bags
+  total_daily_lbs: 1500      # (50×20) + (100×5) = 1500 lbs
+  total_daily_revenue: 1600  # (50×$20) + (100×$6) = $1600
+  total_daily_cost: 165      # (50×$2.20) + (100×$0.55) = $165
+  total_daily_margin: 1435   # $1600 - $165 = $1435
+  total_daily_donations: 108 # (50×$2) + (100×$0.60) = $108
+  mill_capacity_used: 68     # 1500 lbs / 2200 lbs capacity = 68%
+
+market_analysis:
+  demand_drivers:
+    - "Local restaurant partnerships"
+    - "Home baking trend"
+    - "Artisan flour quality"
+    - "Community support"
+    
+  seasonal_factors:
+    spring: 1.0              # Baseline demand
+    summer: 0.9              # -10% (vacation season)
+    fall: 1.2                # +20% (baking season)
+    winter: 1.1              # +10% (holiday baking)
+    
+  competition:
+    grocery_stores: "Lower price, lower quality"
+    specialty_mills: "Higher price, similar quality"
+    online_retailers: "Convenience factor"
+    
+pricing_strategy:
+  premium_positioning: true
+  quality_justification: "Fresh-milled, local grain"
+  bulk_discounts:
+    10_bags: 0.05            # 5% discount
+    20_bags: 0.10            # 10% discount
+    50_bags: 0.15            # 15% discount
+
+distribution:
+  retail_channels:
+    - "On-site bakery sales"
+    - "Farmers market booth"
+    - "Local grocery partnerships"
+    
+  b2b_delivery:
+    radius_miles: 40
+    delivery_cost: 0.20      # $0.20/mile
+    minimum_order: 10        # 10 bags minimum
+    
+  packaging:
+    material: "Food-grade paper bags"
+    labeling: "Tonasket Community Mill"
+    storage_instructions: "Store in cool, dry place"

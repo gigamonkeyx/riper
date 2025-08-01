@@ -1,0 +1,46 @@
+# Banking and Loans Configuration for Tonasket Simulation
+# USDA-backed loans: RBDG $10K-$500K at 0% interest
+
+usda_loans:
+  rbdg:  # Rural Business Development Grant
+    name: "Rural Business Development Grant"
+    min_amount: 10000
+    max_amount: 500000
+    interest_rate: 0.00  # 0% interest
+    term_years: 10
+    matching_required: false  # Waived for underserved areas
+    
+  community_facilities:
+    name: "Community Facilities Direct Loan & Grant Program"
+    loan_rate: 0.045  # 4.5% interest
+    grant_percentage: 0.75  # Up to 75% grant for underserved
+    max_amount: 200000  # For building with mill/locker/ovens
+    term_years: 20
+    
+commercial_loans:
+  local_banks:
+    - name: "Okanogan County Bank"
+      interest_rate: 0.065  # 6.5%
+      max_amount: 100000
+      term_years: 7
+      
+    - name: "Washington Trust Bank"
+      interest_rate: 0.070  # 7.0%
+      max_amount: 150000
+      term_years: 10
+
+loan_requirements:
+  credit_score_minimum: 650
+  debt_to_income_ratio: 0.40  # Max 40%
+  business_plan_required: true
+  collateral_required: true
+  
+funding_priorities:
+  building_construction: 200000  # $200K for mill/locker/ovens/teaching/dining
+  equipment_purchase: 75000
+  working_capital: 25000
+  
+repayment_terms:
+  payment_frequency: "monthly"
+  prepayment_penalty: false
+  grace_period_months: 6  # For seasonal businesses
