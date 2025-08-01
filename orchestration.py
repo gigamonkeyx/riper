@@ -157,21 +157,21 @@ class SimPyDESLogistics:
             "oven_utilization": 0.0
         }
 
-        # Enhanced Mill productivity (1.0 tons/day capacity)
+        # OPTIMIZATION: Step 7 - Mill Capacity (1.0 tons/day = 2,200 lbs: 1,166 lbs bread, 750 lbs free flour, 284 lbs buffer)
         self.mill_resources = {}
         self.mill_production_events = []
         self.mill_productivity_metrics = {
             "daily_flour_tons": 0.0,
             "weekly_flour_tons": 0.0,
-            "target_daily_tons": 1.0,    # Enhanced to 1.0 tons/day target
-            "target_weekly_tons": 7.0,   # Enhanced to 7.0 tons/week
+            "target_daily_tons": 1.1,    # 1.1 tons/day (2,200 lbs)
+            "target_weekly_tons": 7.7,   # 7.7 tons/week
             "flour_requirements": {
-                "bread_flour": 1.193,     # 1.193 tons for bread production
-                "free_flour": 0.750,      # 0.750 tons for free output
-                "total_needed": 1.943,    # 1.943 tons total needed
-                "buffer_capacity": 0.057  # 0.057 tons buffer (57 lbs)
+                "bread_flour": 0.583,     # 0.583 tons (1,166 lbs) for bread production
+                "free_flour": 0.375,      # 0.375 tons (750 lbs) for free output
+                "buffer_capacity": 0.142, # 0.142 tons (284 lbs) buffer
+                "total_capacity": 1.1     # 1.1 tons (2,200 lbs) total capacity
             },
-            "utilization_rate": 0.97,     # 97% utilization (1.943/2.0)
+            "utilization_rate": 0.87,     # 87% utilization ((583+375)/1100)
             "total_grain_processed": 0.0,
             "avg_milling_time": 0.0,
             "mill_utilization": 0.0,
@@ -435,8 +435,8 @@ Calculate group buy coordination and material needs."""
         except Exception as e:
             logger.error(f"SimPy bread production process error: {e}")
 
-    def mill_production_process(self, grain_type: str, grain_quantity_tons: float, target_flour_tons: float = 1.0):
-        """SimPy process for enhanced mill productivity (1.0 tons/day, 7.0 tons/week for bread flour)"""
+    def mill_production_process(self, grain_type: str, grain_quantity_tons: float, target_flour_tons: float = 1.1):
+        """OPTIMIZATION: Step 7 - SimPy process for mill capacity (1.1 tons/day = 2,200 lbs)"""
         start_time = self.env.now
 
         try:
@@ -711,22 +711,22 @@ Calculate group buy coordination and material needs."""
         }
 
     async def run_mill_production_simulation(self, grain_inputs: List[Dict[str, Any]], simulation_time: float = 24.0) -> Dict[str, Any]:
-        """Run SimPy simulation for enhanced mill productivity (1.0 tons/day, 7.0 tons/week)"""
+        """OPTIMIZATION: Step 7 - Run SimPy simulation for mill capacity (1.1 tons/day = 2,200 lbs)"""
         self.setup_facilities()
 
-        # Reset daily mill metrics (enhanced capacity)
+        # Reset daily mill metrics (optimized capacity)
         self.mill_productivity_metrics = {
             "daily_flour_tons": 0.0,
             "weekly_flour_tons": 0.0,
-            "target_daily_tons": 1.0,     # Enhanced to 1.0 tons/day
-            "target_weekly_tons": 7.0,    # Enhanced to 7.0 tons/week
+            "target_daily_tons": 1.1,     # 1.1 tons/day (2,200 lbs)
+            "target_weekly_tons": 7.7,    # 7.7 tons/week
             "flour_requirements": {
-                "bread_flour": 1.193,      # 1.193 tons for bread production
-                "free_flour": 0.750,       # 0.750 tons for free output
-                "total_needed": 1.943,     # 1.943 tons total needed
-                "buffer_capacity": 0.057   # 0.057 tons buffer
+                "bread_flour": 0.583,      # 0.583 tons (1,166 lbs) for bread production
+                "free_flour": 0.375,       # 0.375 tons (750 lbs) for free output
+                "buffer_capacity": 0.142,  # 0.142 tons (284 lbs) buffer
+                "total_capacity": 1.1       # 1.1 tons (2,200 lbs) total capacity
             },
-            "utilization_rate": 0.97,      # 97% utilization
+            "utilization_rate": 0.87,      # 87% utilization ((583+375)/1100)
             "total_grain_processed": 0.0,
             "avg_milling_time": 0.0,
             "mill_utilization": 0.0,
@@ -1686,11 +1686,44 @@ class Observer:
         self.protocol_text = RIPER_OMEGA_PROTOCOL_V26
         self.fitness_threshold = 0.70  # >70% fitness requirement
 
-        # Qwen3 integration via OpenRouter
-        self.openrouter_client = get_openrouter_client()
-        self.qwen3_model = "qwen/qwen-2.5-coder-32b-instruct"
+        # Local Ollama integration (bypassing OpenRouter) - using Qwen2.5-coder for better context
+        self.qwen3_model = "qwen2.5-coder:7b"  # Using Qwen2.5-coder for better understanding
+        logger.info("Using local Ollama qwen2.5-coder:7b instead of OpenRouter (better context understanding)")
+
+        # Evolution configuration - SET TO FULL MODE FOR MAXIMUM OPTIMIZATION
+        self.max_generations = 70  # Full optimization mode
+        self.quick_mode = False    # Full mode enabled for maximum performance
 
         logger.info(f"Observer agent {agent_id} initialized with RIPER-Ω v2.6")
+
+    def set_evolution_mode(self, mode: str = "full", custom_generations: int = None):
+        """
+        Configure evolution generation mode
+
+        Args:
+            mode: "quick" (7 gen), "full" (70 gen), or "custom"
+            custom_generations: Custom generation count if mode="custom"
+        """
+        if mode == "quick":
+            self.quick_mode = True
+            self.max_generations = 7
+            logger.info("🔄 Evolution mode set to QUICK (7 generations, real-time)")
+        elif mode == "full":
+            self.quick_mode = False
+            self.max_generations = 70
+            logger.info("🌙 Evolution mode set to FULL (70 generations, maximum optimization)")
+        elif mode == "custom" and custom_generations:
+            self.quick_mode = False
+            self.max_generations = custom_generations
+            logger.info(f"⚙️ Evolution mode set to CUSTOM ({custom_generations} generations)")
+        else:
+            logger.warning("Invalid evolution mode, keeping current settings")
+
+        return {
+            "mode": "quick" if self.quick_mode else "full/custom",
+            "generations": self.max_generations,
+            "estimated_time": self.max_generations * 2.4  # seconds
+        }
 
     def transition_mode(self, new_mode: RiperMode) -> bool:
         """Transition between RIPER-Ω modes with audit trail and v2.6 bias audit"""
@@ -1765,7 +1798,17 @@ class Observer:
         metrics = EvolutionaryMetrics()
 
         # Evolution loop (stub - detailed implementation in evo_core.py)
-        for generation in range(10):  # Basic loop
+        # Configurable generation count based on optimization mode
+        max_generations = getattr(self, 'max_generations', 70)  # Default to 70 for full optimization
+        quick_mode = getattr(self, 'quick_mode', False)  # Set to True for 7-gen real-time mode
+
+        if quick_mode:
+            max_generations = 7
+            logger.info("🔄 Quick mode: Using 7 generations for real-time optimization")
+        else:
+            logger.info(f"🌙 Full mode: Using {max_generations} generations for maximum optimization")
+
+        for generation in range(max_generations):
             # Get fitness from evolution engine
             fitness_score = evo_engine.evaluate_generation()
             metrics.add_fitness_score(fitness_score)
@@ -1941,48 +1984,85 @@ class Observer:
             "resume_authorized": False
         }
 
-    def openrouter_to_ollama_handoff(self, task_description: str, target_model: str = "qwen2.5-coder:32b") -> Dict[str, Any]:
+    def openrouter_to_ollama_handoff(self, task_description: str, target_model: str = "qwen2.5-coder:7b") -> Dict[str, Any]:
         """
-        OpenRouter Qwen3 to Ollama instruction handoff
-        Generates instruction checklist via OpenRouter API, routes to Ollama via A2A
+        Local Ollama Qwen3 instruction handoff (bypassing OpenRouter)
+        Generates instruction checklist via local Ollama, routes via A2A
         """
-        from openrouter_client import get_openrouter_client
+        import ollama
 
-        logger.info(f"HANDOFF: OpenRouter Qwen3 → Ollama {target_model}")
+        logger.info(f"HANDOFF: Local Ollama Qwen3 → Ollama {target_model}")
 
         try:
-            # Generate instruction checklist via OpenRouter Qwen3
-            openrouter_client = get_openrouter_client()
-
+            # Generate instruction checklist with specific job context
             handoff_prompt = f"""
-            Generate a detailed implementation checklist for the following task:
-            {task_description}
+            RIPER-Ω SYSTEM TASK: {task_description}
 
-            Format as numbered steps for Ollama execution:
-            1. [Specific action with expected outcome]
-            2. [Next action with validation criteria]
-            ...
+            YOUR JOB: Create a technical implementation checklist for this RIPER-Ω system task.
 
-            Include fitness validation (>70%) and halt conditions.
-            Keep steps actionable and measurable.
+            TASK CONTEXT:
+            - This is about evolutionary algorithms and bakery production simulation
+            - "evo" means evolutionary optimization, NOT EVE Online video game
+            - Focus on: neural network evolution, agent coordination, workflow optimization
+            - System uses Mesa ABM, GPU acceleration, A2A messaging
+
+            GENERATE CHECKLIST:
+            1. [Specific RIPER-Ω system action with expected outcome]
+            2. [Next technical step with validation criteria]
+            3. [Continue with system-specific steps...]
+
+            REQUIREMENTS:
+            - Include fitness validation (>70%) for evolutionary tasks
+            - Add GPU optimization considerations (RTX 3080)
+            - Reference actual bakery workflows when relevant
+            - Include A2A communication steps
+            - Add system halt conditions
+            - Keep steps technical and measurable
             """
 
-            # Get instruction from OpenRouter Qwen3 (free model)
-            system_prompt = "You are a task breakdown specialist. Generate precise, actionable checklists for RIPER-Ω protocol implementation."
-            messages = [{"role": "user", "content": handoff_prompt}]
+            # Load RIPER-Ω context and create specific job description
+            system_prompt = """You are a RIPER-Ω System Task Breakdown Specialist.
 
-            # Use free Qwen3-Coder model
-            qwen3_response = openrouter_client.chat_completion(messages, system_prompt)
+YOUR EXACT JOB:
+1. Take a RIPER-Ω system task description
+2. Generate a numbered implementation checklist
+3. Focus ONLY on evolutionary algorithms, bakery workflows, and agent coordination
+4. NEVER interpret "evo" as EVE Online video game
 
-            if not qwen3_response.success:
-                raise Exception(f"OpenRouter API failed: {qwen3_response.error_message}")
+RIPER-Ω SYSTEM CONTEXT:
+- Rural bakery production simulation with 6 workflows
+- Evolutionary algorithms optimize neural networks (fitness >70%)
+- Agent-Based Modeling with Observer/Builder agents
+- GPU-accelerated (RTX 3080) with A2A communication
+- Mesa ABM + System Dynamics + Discrete Event Simulation
 
-            instruction_checklist = qwen3_response.content
+YOUR OUTPUT FORMAT:
+- Numbered steps (1, 2, 3...)
+- Technical validation checkpoints
+- Resource requirements and time estimates
+- Success criteria for each step
+- System-specific terminology only
+
+CRITICAL: "evo" = evolutionary algorithms, NOT video games."""
+
+            # Use local Ollama Qwen2.5-coder with specific job context
+            qwen3_response = ollama.chat(
+                model="qwen2.5-coder:7b",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": handoff_prompt}
+                ]
+            )
+
+            if not qwen3_response or 'message' not in qwen3_response:
+                raise Exception(f"Local Ollama Qwen3 failed: No response received")
+
+            instruction_checklist = qwen3_response['message']['content']
 
             # Create A2A handoff message for Ollama
             a2a_handoff = {
                 "action": "goal_exchange",
-                "source": "openrouter_qwen3",
+                "source": "local_ollama_qwen3",
                 "target": f"ollama_{target_model}",
                 "instruction_type": "implementation_checklist",
                 "checklist": instruction_checklist,
@@ -2062,9 +2142,9 @@ class Builder:
             "general": []
         }
 
-        # Qwen3 integration via OpenRouter
-        self.openrouter_client = get_openrouter_client()
-        self.qwen3_model = "qwen/qwen-2.5-coder-32b-instruct"
+        # Local Ollama integration (bypassing OpenRouter) - using Qwen2.5-coder for better context
+        self.qwen3_model = "qwen2.5-coder:7b"  # Using Qwen2.5-coder for better understanding
+        logger.info("Builder using local Ollama qwen2.5-coder:7b instead of OpenRouter (better context understanding)")
 
         logger.info(f"Builder agent {agent_id} initialized with Camel modular agents for swarm stability")
 
@@ -2461,39 +2541,67 @@ def main():
         purge_temp_files(temp_dir)
 
 
-def qwen_ollama_handoff(task_description: str, target_model: str = "qwen2.5-coder:32b") -> Dict[str, Any]:
-    """Handoff from Qwen3 to Ollama for task execution."""
-    openrouter_client = get_openrouter_client()
+def qwen_ollama_handoff(task_description: str, target_model: str = "qwen2.5-coder:7b") -> Dict[str, Any]:
+    """Handoff from local Ollama Qwen2.5 to Ollama for task execution with specific job context."""
+    import ollama
+
+    # Specific job description for RIPER-Ω system
+    system_prompt = """You are a RIPER-Ω System Task Breakdown Specialist.
+
+YOUR EXACT JOB:
+1. Take a RIPER-Ω system task description
+2. Generate a numbered implementation checklist
+3. Focus ONLY on evolutionary algorithms, bakery workflows, and agent coordination
+4. NEVER interpret "evo" as EVE Online video game
+
+RIPER-Ω CONTEXT:
+- Rural bakery production simulation with 6 workflows
+- Evolutionary algorithms optimize neural networks (fitness >70%)
+- Agent-Based Modeling with Observer/Builder agents
+- GPU-accelerated (RTX 3080) with A2A communication
+
+OUTPUT: Numbered technical checklist with validation steps."""
 
     handoff_prompt = f"""
-    Generate a detailed implementation checklist for the following task:
-    {task_description}
+    RIPER-Ω SYSTEM TASK: {task_description}
 
-    Format as numbered steps.
+    YOUR JOB: Create a technical implementation checklist for this RIPER-Ω system task.
+
+    CONTEXT: This is about evolutionary algorithms and bakery production simulation, NOT video games.
+
+    Generate numbered steps for RIPER-Ω system implementation with validation checkpoints.
     """
 
-    messages = [{"role": "user", "content": handoff_prompt}]
+    try:
+        # Use local Ollama Qwen2.5-coder with specific job context
+        qwen3_response = ollama.chat(
+            model="qwen2.5-coder:7b",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": handoff_prompt}
+            ]
+        )
 
-    system_prompt = "You are a task breakdown specialist."
+        if not qwen3_response or 'message' not in qwen3_response:
+            return {"success": False, "error": "No response from local Ollama"}
 
-    qwen3_response = openrouter_client.chat_completion(messages, system_prompt)
+        checklist = qwen3_response['message']['content']
 
-    if not qwen3_response.success:
-        return {"success": False, "error": qwen3_response.error_message}
+        a2a_handoff = {
+            "action": "task_handoff",
+            "source": "local_ollama_qwen2.5",
+            "target": target_model,
+            "checklist": checklist,
+            "timestamp": time.time()
+        }
 
-    checklist = qwen3_response.content
+        logger.info(f"A2A Handoff sent: {a2a_handoff}")
 
-    a2a_handoff = {
-        "action": "task_handoff",
-        "source": "qwen3",
-        "target": target_model,
-        "checklist": checklist,
-        "timestamp": time.time()
-    }
+        return {"success": True, "checklist": checklist, "handoff": a2a_handoff}
 
-    logger.info(f"A2A Handoff sent: {a2a_handoff}")
-
-    return {"success": True, "checklist": checklist, "handoff": a2a_handoff}
+    except Exception as e:
+        logger.error(f"Local Ollama handoff failed: {e}")
+        return {"success": False, "error": str(e)}
 
 def tonasket_underserved_swarm() -> Dict[str, Any]:
     """Optimized Tonasket underserved swarm simulation using YAML sub-agents and local processing"""
