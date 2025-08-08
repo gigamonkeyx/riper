@@ -622,3 +622,29 @@ CI/CD Setup: ✅ PASS
 - [CrewAI Multi-Agent Framework](https://docs.crewai.com)
 - [Bark TTS Repository](https://github.com/suno-ai/bark)
 - [Ollama Local Models](https://ollama.ai)
+
+## Capability Registry
+
+Lightweight environment inspection to validate readiness for hybrid (local + OpenRouter) operation and GPU acceleration.
+
+Run:
+```bash
+python -m capabilities
+```
+
+Key fields:
+- cuda.available: CUDA device visibility
+- ollama_service.available: Local Ollama daemon reachable (localhost:11434)
+- openrouter.configured: API key present for remote model usage
+- drive_d.exists / drive_d.writable: D: drive compliance (Windows deployment assumption)
+- summary.hybrid_mode_ready: Both local service + remote key available
+- summary.warnings: Actionable environment issues
+
+## Fitness Policy Clarification
+
+Two tiers of evaluation operate simultaneously:
+
+1. Operational Threshold (>0.70): Used by evolutionary loops to determine progress sufficiency and allow iteration.
+2. Perfection Mode (Strict Bias Guard, v2.6.1+): Builder / summary outputs invoking completion claims must reach fitness == 1.0; any <1.0 triggers mandatory halt & auto-fix suggestions.
+
+Rationale: Encourages steady evolutionary improvement while preventing rationalization or premature success claims. A future configuration flag (planned) will allow tuning this strictness for development vs production.

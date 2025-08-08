@@ -22,61 +22,31 @@ class BarkCompatibilityManager:
         self._setup_environment()
 
     def _setup_environment(self):
-        """Setup environment for Bark compatibility - FORCE D: drive"""
-        # CRITICAL: Force ALL cache operations to D: drive
-        cache_vars = {
-            "HF_HOME": "D:\\huggingface_cache",
-            "TRANSFORMERS_CACHE": "D:\\transformers_cache",
-            "HF_DATASETS_CACHE": "D:\\datasets_cache",
-            "TORCH_HOME": "D:\\torch_cache",
-            "TMPDIR": "D:\\temp",
-            "TEMP": "D:\\temp",
-            "TMP": "D:\\temp",
-            "PYTORCH_TRANSFORMERS_CACHE": "D:\\transformers_cache",
-            "PYTORCH_PRETRAINED_BERT_CACHE": "D:\\transformers_cache",
-            "XDG_CACHE_HOME": "D:\\cache",
-            "HUGGINGFACE_HUB_CACHE": "D:\\huggingface_cache",
-            "SUNO_OFFLOAD_CPU": "True",
-            "SUNO_USE_SMALL_MODELS": "True",
-            "BARK_CACHE_DIR": "D:\\bark_cache",
-        }
-
-        # FORCE override ALL environment variables
-        for var, path in cache_vars.items():
-            os.environ[var] = path
-            print(f"FORCED {var} = {path}")
-
-        # Set tempfile directory
-        tempfile.tempdir = "D:\\temp"
-
-        # Create ALL cache directories
-        cache_dirs = [
-            "D:\\huggingface_cache",
-            "D:\\transformers_cache",
-            "D:\\datasets_cache",
-            "D:\\torch_cache",
-            "D:\\cache",
-            "D:\\temp",
-            "D:\\bark_cache",
-        ]
-
-        for cache_dir in cache_dirs:
-            os.makedirs(cache_dir, exist_ok=True)
-            print(f"Created directory: {cache_dir}")
-
-        # CRITICAL: Override torch hub directory
+        """Setup environment for Bark compatibility with optional D: enforcement"""
+        from aggressive_cache_control import enforce_cache_paths, set_torch_hub_dir
         try:
-            import torch
+            from capabilities import get_capabilities
+        except Exception:
+            get_capabilities = None  # type: ignore
 
-            torch.hub.set_dir("D:\\torch_cache")
-            print(f"FORCED torch.hub directory: D:\\torch_cache")
-        except Exception as e:
-            print(f"Warning: Could not set torch.hub directory: {e}")
+        enabled = os.getenv("RIPER_ENFORCE_D_DRIVE", "0") == "1"
+        if not enabled and get_capabilities is not None:
+            try:
+                caps = get_capabilities()
+                dd = caps.get("drive_d", {})
+                enabled = bool(dd.get("writable"))
+            except Exception:
+                enabled = False
+
+        # Apply gentle enforcement (no override of pre-set env)
+        enforce_cache_paths(cache_root="D:/", enabled=enabled)
+        if enabled:
+            set_torch_hub_dir("D:/")
 
         # AGGRESSIVE: Monkey patch cache functions BEFORE import
         self._monkey_patch_cache_functions()
 
-        print("🚨 AGGRESSIVE D: DRIVE COMPLIANCE ENFORCED")
+        logger.info("D: drive cache enforcement %s", "enabled" if enabled else "disabled")
 
     def _monkey_patch_cache_functions(self):
         """Aggressively monkey patch all cache functions to use D: drive"""

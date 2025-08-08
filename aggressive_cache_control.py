@@ -10,6 +10,99 @@ import tempfile
 import shutil
 
 
+from typing import Dict, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def enforce_cache_paths(cache_root: str = "D:/", enabled: Optional[bool] = None) -> Dict[str, str]:
+    """Gently enforce cache paths under cache_root when enabled.
+
+    - Does NOT override preexisting env vars
+    - Creates directories if missing
+    - Controlled by `enabled` or env RIPER_ENFORCE_D_DRIVE ("1" to enable)
+
+    Returns a dict of env vars that were set.
+    """
+    if enabled is None:
+        enabled = os.getenv("RIPER_ENFORCE_D_DRIVE", "0") == "1"
+
+    if not enabled:
+        logger.info("D: drive cache enforcement disabled")
+        return {"enabled": False}
+
+    # Normalize path with trailing slash
+    root = cache_root.replace("\\", "/")
+    if not root.endswith("/"):
+        root += "/"
+
+    to_set = {
+        "HF_HOME": f"{root}huggingface_cache",
+        "TRANSFORMERS_CACHE": f"{root}transformers_cache",
+        "HF_DATASETS_CACHE": f"{root}datasets_cache",
+        "TORCH_HOME": f"{root}torch_cache",
+        "XDG_CACHE_HOME": f"{root}cache",
+        "TMPDIR": f"{root}temp",
+        "TEMP": f"{root}temp",
+        "TMP": f"{root}temp",
+        "PYTORCH_TRANSFORMERS_CACHE": f"{root}transformers_cache",
+        "PYTORCH_PRETRAINED_BERT_CACHE": f"{root}transformers_cache",
+        "HUGGINGFACE_HUB_CACHE": f"{root}huggingface_cache",
+        "SUNO_OFFLOAD_CPU": "True",
+        "SUNO_USE_SMALL_MODELS": "True",
+        "BARK_CACHE_DIR": f"{root}bark_cache",
+    }
+
+    set_vars: Dict[str, str] = {}
+
+    # Set only if not already set
+    for var, path in to_set.items():
+        if var not in os.environ:
+            os.environ[var] = path
+            set_vars[var] = path
+
+    # Ensure directories exist (best-effort)
+    for key in [
+        "HF_HOME",
+        "TRANSFORMERS_CACHE",
+        "HF_DATASETS_CACHE",
+        "TORCH_HOME",
+        "XDG_CACHE_HOME",
+        "TMPDIR",
+        "BARK_CACHE_DIR",
+    ]:
+        try:
+            os.makedirs(os.environ.get(key, f"{root}cache"), exist_ok=True)
+        except Exception as e:
+            logger.warning(f"Failed to create cache dir for {key}: {e}")
+
+    # Set Python tempfile directory
+    try:
+        tempfile.tempdir = os.environ.get("TMPDIR", f"{root}temp")
+    except Exception:
+        pass
+
+    set_vars["enabled"] = True
+    logger.info(f"D: drive cache enforcement applied under root {root}")
+    return set_vars
+
+
+def set_torch_hub_dir(cache_root: str = "D:/") -> bool:
+    """Set torch.hub dir if torch is installed; return True on success."""
+    try:
+        import torch  # type: ignore
+
+        root = cache_root.replace("\\", "/")
+        if not root.endswith("/"):
+            root += "/"
+        torch.hub.set_dir(f"{root}torch_cache")
+        logger.info("torch.hub directory set for D: drive compliance")
+        return True
+    except Exception as e:
+        logger.debug(f"Could not set torch.hub directory: {e}")
+        return False
+
 class AggressiveCacheController:
     """Completely override all cache mechanisms to use D: drive"""
 

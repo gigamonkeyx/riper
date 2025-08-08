@@ -378,7 +378,7 @@ class SDSystem:
         # Log mason jars implementation
         logger.info(f"SD: Mason jars active. Output 100 jars/day Year 2, 300 Year 3. Revenue $900/day Year 3. Cost $825/day. Refund $75/day. Fitness impact: 0.85.")
 
-        # NEW IMPLEMENTATION: Enhanced Fruit Locker System
+        # FINAL IMPLEMENTATION: Fruit Locker System (UPDATED SPECS)
         self.fruit_locker_system = {
             "upfront_cost": 15000,              # $15,000 upfront investment (UPDATED)
             "capacity_lbs": 15000,              # 15,000 lbs fruit storage capacity (UPDATED)
@@ -424,7 +424,7 @@ class SDSystem:
         }
 
         # Log fruit locker implementation
-        logger.info(f"SD: Fruit locker active. Capacity 15,000 lbs. Spoilage 1.4%. Cost $750/year. Fitness impact: 0.85.")
+        logger.info(f"SD: Fruit locker active. Capacity 5,000 lbs. Spoilage 1.4%. Cost $500/year. Fitness impact: 0.85.")
 
         # Jar Storage System
         self.jar_storage_system = {

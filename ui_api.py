@@ -176,8 +176,7 @@ def get_simulation_status():
                 "building_cost": building["total_building_cost"],
                 "meals_served": reporting["grant_compliance_metrics"]["total_meals_equivalent"],
                 "grant_compliance": reporting["grant_compliance_metrics"]["compliance_rate"]
-            },
-            "fitness_score": 2.9
+            }
         })
         
     except Exception as e:

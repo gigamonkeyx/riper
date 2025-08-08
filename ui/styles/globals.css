@@ -1,6 +1,54 @@
+/* Tailwind base */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import 'leaflet/dist/leaflet.css';
+
+:root {
+  --crate-red: #b23a2a;
+  --crate-amber: #e9a23b;
+  --crate-olive: #6b7e3b;
+  --crate-navy: #203a43;
+  --crate-cream: #f5e8c7;
+  --crate-ink: #1a1a1a;
+}
+
+.font-headline { font-family: var(--font-headline), serif; }
+.font-body { font-family: var(--font-body), system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+
+body { background: var(--crate-cream); color: var(--crate-ink); }
+
+/***** Components *****/
+.crate-card {
+  @apply rounded-xl shadow-lg border;
+  background: linear-gradient(180deg, #ffffff, #fbfbf7);
+  border-color: rgba(0,0,0,0.06);
+}
+
+.crate-panel {
+  @apply rounded-xl border;
+  background: linear-gradient(180deg, #fffaf0, #f7f2e5);
+  border-color: rgba(178,58,42,0.25);
+}
+
+.crate-btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold transition;
+  background-color: var(--crate-red);
+  color: #fff;
+}
+.crate-btn:hover { filter: saturate(105%) brightness(1.02); }
+
+.crate-kpi {
+  @apply rounded-lg p-5 text-white shadow;
+  background: linear-gradient(135deg, var(--crate-navy), #2d5966);
+}
+
+.crate-kpi--amber { background: linear-gradient(135deg, var(--crate-amber), #d6871f); }
+.crate-kpi--olive { background: linear-gradient(135deg, var(--crate-olive), #51662a); }
+
+/***** Map container *****/
+.map-container { height: 360px; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
 
 @layer base {
   html {

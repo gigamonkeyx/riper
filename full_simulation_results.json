@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "metrics": {
+    "simulation_steps": 10,
+    "evolution_generations": 10,
+    "final_fitness": 2.86,
+    "total_reports": 17,
+    "total_agents": 236,
+    "agent_action_tracking": 4,
+    "ui_integration": true,
+    "mill_capacity_tons": 1.1,
+    "fruit_locker_capacity": 15000,
+    "revenue_baseline": 2220000,
+    "revenue_evolved": 2346290,
+    "profit_baseline": 1640000,
+    "meals_served": 100000,
+    "compliance_rate": 1.0
+  },
+  "validations": {
+    "Fitness Target (>2.8)": true,
+    "Reports Target (17/year)": true,
+    "Agent Count (200+)": true,
+    "Agent Tracking (4 types)": true,
+    "UI Integration": true,
+    "Mill Capacity (1+ tons)": true,
+    "Fruit Locker (15K lbs)": true,
+    "Revenue Evolution": true,
+    "Meals Target (100K)": true,
+    "Compliance (100%)": true
+  },
+  "simulation_time": "2025-08-01 13:55:14"
+}

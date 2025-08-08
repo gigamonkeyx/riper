@@ -15,8 +15,15 @@ import json
 import subprocess
 import yaml
 import os
-import ollama
 from typing import Dict, List, Optional, Any, Union
+
+# Optional import for Ollama; guard environments without it
+try:
+    import ollama  # type: ignore
+    OLLAMA_AVAILABLE = True
+except Exception:  # pragma: no cover - safe fallback
+    ollama = None  # type: ignore
+    OLLAMA_AVAILABLE = False
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from openrouter_client import get_openrouter_client
@@ -102,7 +109,15 @@ Data: {task_data_str}
 
 Process this task according to your specialization and return structured results."""
 
-            # Delegate to Ollama
+            # Delegate to Ollama if available
+            if not OLLAMA_AVAILABLE:
+                logger.warning("Ollama unavailable - cannot delegate YAML sub-agent task")
+                return {
+                    "success": False,
+                    "agent": agent_name,
+                    "error": "Ollama unavailable"
+                }
+
             start_time = time.time()
             response = ollama.chat(
                 model=model,
@@ -391,7 +406,12 @@ class OllamaSpecialist(ABC):
     def _call_ollama(
         self, prompt: str, system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Make API call to Ollama with CLI fallback as primary"""
+        """Make API call to Ollama (prefers CLI, falls back to HTTP API).
+
+        Previous implementation returned immediately after the CLI call,
+        leaving the HTTP logic unreachable. This refactor preserves the
+        preference for the CLI path while enabling fallback logic if needed.
+        """
         if not self.ollama_available:
             return {"error": "Ollama not available", "response": ""}
 
@@ -399,66 +419,72 @@ class OllamaSpecialist(ABC):
         gpu_info = check_gpu_memory()
         if gpu_info.get("over_8gb", False):
             logger.warning(f"⚠️ High VRAM usage: {gpu_info.get('used_mb', 0)}MB")
-
-        # Use CLI fallback as primary method due to API instability
-        logger.info("Using CLI fallback as primary method")
-        return self._ollama_subprocess_call({"prompt": prompt, "system": system_prompt})
-
+        # Prepare shared payload for HTTP path
         payload = {
             "model": self.model_name,
             "prompt": prompt,
             "stream": False,
             "options": {
                 "num_gpu": 1 if self.gpu_enabled else 0,
-                "num_thread": 8,  # RTX 3080 optimization
+                "num_thread": 8,
                 "temperature": 0.7,
             },
         }
-
         if system_prompt:
             payload["system"] = system_prompt
 
-        try:
-            start_time = time.time()
+        # First attempt: CLI (preferred for stability)
+        logger.info("Ollama call: attempting CLI path first")
+        cli_result = self._ollama_subprocess_call({"prompt": prompt})
+        if cli_result.get("success"):
+            return cli_result
 
-            if REQUESTS_AVAILABLE:
+        # Fallback: HTTP API if requests available
+        if REQUESTS_AVAILABLE:
+            try:
+                start_time = time.time()
                 response = requests.post(
                     f"{self.base_url}/api/generate", json=payload, timeout=300.0
                 )
-                result = response.json()
-            else:
-                # Fallback: use subprocess
-                result = self._ollama_subprocess_call(payload)
+                if response.status_code == 200:
+                    result = response.json()
+                    execution_time = time.time() - start_time
+                    response_text = result.get("response", "")
+                    estimated_tokens = len(response_text.split())
+                    tok_sec = (
+                        estimated_tokens / execution_time if execution_time > 0 else 0
+                    )
+                    logger.debug(
+                        f"Ollama HTTP call completed: {tok_sec:.1f} tok/sec (target: 7-15)"
+                    )
+                    return {
+                        "response": response_text,
+                        "execution_time": execution_time,
+                        "tokens_per_second": tok_sec,
+                        "gpu_used": self.gpu_enabled,
+                        "success": True,
+                        "method": "http_api",
+                    }
+                else:
+                    logger.error(
+                        f"Ollama HTTP error: status={response.status_code} body={response.text[:120]}"
+                    )
+            except Exception as e:
+                logger.error(f"Ollama HTTP call failed: {e}")
 
-            execution_time = time.time() - start_time
-
-            # Estimate tokens per second (rough approximation)
-            response_text = result.get("response", "")
-            estimated_tokens = len(response_text.split())
-            tok_sec = estimated_tokens / execution_time if execution_time > 0 else 0
-
-            logger.debug(f"Ollama call completed: {tok_sec:.1f} tok/sec (target: 7-15)")
-
-            return {
-                "response": response_text,
-                "execution_time": execution_time,
-                "tokens_per_second": tok_sec,
-                "gpu_used": self.gpu_enabled,
-                "success": True,
-            }
-
-        except Exception as e:
-            logger.error(f"Ollama API call failed: {e}")
-            # CLI fallback for timeouts >30s
-            if "timeout" in str(e).lower():
-                logger.info("Attempting CLI fallback...")
-                return self._ollama_subprocess_call(payload)
-            return {"error": str(e), "response": "", "success": False}
+        # Final fallback: return CLI failure details
+        return cli_result if cli_result else {"error": "All Ollama call methods failed", "success": False}
 
     def _ollama_subprocess_call(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Fallback Ollama call using subprocess"""
         try:
-            cmd = ["ollama", "run", self.model_name, payload["prompt"]]
+            # Inject system prompt (if provided) by concatenating with a separator
+            full_prompt = payload.get("prompt", "")
+            system_part = payload.get("system")
+            if system_part:
+                full_prompt = f"[SYSTEM]\n{system_part}\n\n[USER]\n{full_prompt}"
+
+            cmd = ["ollama", "run", self.model_name, full_prompt]
             start_time = time.time()
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
             execution_time = time.time() - start_time
@@ -868,61 +894,37 @@ class TTSHandler(OllamaSpecialist):
         self.bark_available = self._check_bark_availability()
 
     def _setup_d_drive_cache(self):
-        """EMERGENCY: Force D: drive cache compliance for all TTS operations"""
+        """Configure D: drive cache usage for TTS operations with gating.
+
+        - Uses aggressive_cache_control.enforce_cache_paths when enabled
+        - Enabled if RIPER_ENFORCE_D_DRIVE=1 or Drive D: is writable (capabilities)
+        - Best-effort: logs and continues if enforcement is disabled
+        """
         import os
-        import tempfile
-
-        # CRITICAL: Force ALL cache directories to D: drive with Windows paths
-        cache_vars = {
-            "HF_HOME": "D:\\huggingface_cache",
-            "TRANSFORMERS_CACHE": "D:\\transformers_cache",
-            "HF_DATASETS_CACHE": "D:\\datasets_cache",
-            "TORCH_HOME": "D:\\torch_cache",
-            "XDG_CACHE_HOME": "D:\\cache",
-            "TMPDIR": "D:\\temp",
-            "TEMP": "D:\\temp",
-            "TMP": "D:\\temp",
-            "PYTORCH_TRANSFORMERS_CACHE": "D:\\transformers_cache",
-            "PYTORCH_PRETRAINED_BERT_CACHE": "D:\\transformers_cache",
-            "HUGGINGFACE_HUB_CACHE": "D:\\huggingface_cache",
-            "SUNO_OFFLOAD_CPU": "True",
-            "SUNO_USE_SMALL_MODELS": "True",
-            "BARK_CACHE_DIR": "D:\\bark_cache",
-        }
-
-        # FORCE override ALL environment variables
-        for var, path in cache_vars.items():
-            os.environ[var] = path
-            logger.info(f"FORCED {var} = {path}")
-
-        # Set Python tempfile directory
-        tempfile.tempdir = "D:\\temp"
-
-        # Create directories if they don't exist
-        cache_dirs = [
-            "D:\\huggingface_cache",
-            "D:\\transformers_cache",
-            "D:\\datasets_cache",
-            "D:\\torch_cache",
-            "D:\\cache",
-            "D:\\temp",
-            "D:\\bark_cache",
-        ]
-
-        for cache_dir in cache_dirs:
-            os.makedirs(cache_dir, exist_ok=True)
-            logger.info(f"Created cache directory: {cache_dir}")
-
-        # CRITICAL: Override torch hub directory
+        from aggressive_cache_control import enforce_cache_paths, set_torch_hub_dir
         try:
-            import torch
+            from capabilities import get_capabilities
+        except Exception:
+            get_capabilities = None  # type: ignore
 
-            torch.hub.set_dir("D:\\torch_cache")
-            logger.info("FORCED torch.hub directory to D: drive")
-        except Exception as e:
-            logger.warning(f"Could not set torch.hub directory: {e}")
+        enabled = os.getenv("RIPER_ENFORCE_D_DRIVE", "0") == "1"
+        if not enabled and get_capabilities is not None:
+            try:
+                caps = get_capabilities()
+                dd = caps.get("drive_d", {})
+                enabled = bool(dd.get("writable"))
+            except Exception:
+                enabled = False
 
-        logger.info("🚨 EMERGENCY D: DRIVE CACHE COMPLIANCE ENFORCED")
+        result = enforce_cache_paths(cache_root="D:/", enabled=enabled)
+        if result.get("enabled"):
+            try:
+                set_torch_hub_dir("D:/")
+            except Exception as e:
+                logger.debug(f"Non-fatal: could not set torch.hub dir: {e}")
+            logger.info("D: drive cache enforcement enabled for TTSHandler")
+        else:
+            logger.info("D: drive cache enforcement not enabled (skipping)")
 
     def _setup_bark_compatibility(self):
         """Setup Bark TTS compatibility with PyTorch 2.6+"""

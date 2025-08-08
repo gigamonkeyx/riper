@@ -50,7 +50,6 @@ flake8>=5.0.0  # Linting
 
 # Utilities
 pyyaml>=6.0  # Configuration file parsing
-requests>=2.28.0  # HTTP requests for API integration
 tqdm>=4.64.0  # Progress bars for evolutionary loops
 psutil>=5.9.0  # System monitoring for GPU utilization
 

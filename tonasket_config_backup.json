@@ -3,7 +3,7 @@
   "initial_funding": 100000.0,
   "grant_success_rate": 0.8,
   "donation_growth_rate": 0.15,
-  "donation_model": false,
+  "donation_model": true,
   "seasonal_pricing": false,
   "agent_evolution": true,
   "reporting_frequency": "monthly",

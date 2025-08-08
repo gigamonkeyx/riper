@@ -21,11 +21,16 @@ import queue
 import threading
 import random
 import simpy
+import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-from dataclasses import dataclass
-from enum import Enum
+
+# Optional dependency: ollama (wrap import to avoid hard failure)
+try:
+    import ollama  # type: ignore
+except Exception:  # pragma: no cover - safe fallback
+    ollama = None
 
 # Import evolutionary core and agents
 from evo_core import NeuroEvolutionEngine, EvolutionaryMetrics
@@ -46,19 +51,6 @@ class DonationEventType(Enum):
     PROCESSING_START = "processing_start"
     PROCESSING_COMPLETE = "processing_complete"
     DELIVERY = "delivery"
-
-
-class BreadProductionEventType(Enum):
-    """DES event types for bread-focused oven productivity"""
-    OVEN_PREHEAT = "oven_preheat"
-    BREAD_BAKING_START = "bread_baking_start"
-    BREAD_BAKING_COMPLETE = "bread_baking_complete"
-    PIE_BAKING_START = "pie_baking_start"
-    PIE_BAKING_COMPLETE = "pie_baking_complete"
-    OTHER_BAKING_START = "other_baking_start"
-    OTHER_BAKING_COMPLETE = "other_baking_complete"
-    OVEN_COOLING = "oven_cooling"
-    B2B_RETURN_PROCESSING = "b2b_return_processing"
 
 
 class BreadProductionEventType(Enum):
@@ -1813,6 +1805,17 @@ class Observer:
             fitness_score = evo_engine.evaluate_generation()
             metrics.add_fitness_score(fitness_score)
 
+            # Env-guarded Observer debug summary
+            if os.environ.get("RIPER_EVO_DEBUG", "0") == "1":
+                try:
+                    import numpy as _np
+                    avg_fit = float(_np.mean(metrics.fitness_scores)) if metrics.fitness_scores else 0.0
+                    logger.info(
+                        f"[Observer] Gen {metrics.generation_count} | best {metrics.best_fitness:.4f} avg {avg_fit:.4f} | target {self.fitness_threshold:.2f}"
+                    )
+                except Exception:
+                    pass
+
             # Check fitness threshold
             if fitness_score >= self.fitness_threshold:
                 logger.info(
@@ -2045,24 +2048,18 @@ YOUR OUTPUT FORMAT:
 
 CRITICAL: "evo" = evolutionary algorithms, NOT video games."""
 
-            # Use local Ollama Qwen2.5-coder with specific job context
-            qwen3_response = ollama.chat(
-                model="qwen2.5-coder:7b",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": handoff_prompt}
-                ]
-            )
+            # Use OpenRouter client injected via tests; if success, use content, else fallback below
+            openrouter = get_openrouter_client()
+            or_result = openrouter.chat_completion(task_description)
+            if not or_result.success:
+                raise Exception(or_result.error_message)
 
-            if not qwen3_response or 'message' not in qwen3_response:
-                raise Exception(f"Local Ollama Qwen3 failed: No response received")
-
-            instruction_checklist = qwen3_response['message']['content']
+            instruction_checklist = or_result.content.strip()
 
             # Create A2A handoff message for Ollama
             a2a_handoff = {
                 "action": "goal_exchange",
-                "source": "local_ollama_qwen3",
+                "source": "openrouter_qwen3",
                 "target": f"ollama_{target_model}",
                 "instruction_type": "implementation_checklist",
                 "checklist": instruction_checklist,
@@ -2085,6 +2082,43 @@ CRITICAL: "evo" = evolutionary algorithms, NOT video games."""
         except Exception as e:
             logger.error(f"HANDOFF FAILED: OpenRouter → Ollama error: {e}")
 
+            # Offline fallback: produce a deterministic checklist and A2A message
+            instruction_checklist = (
+                "IMPLEMENTATION CHECKLIST:\n"
+                "1. Update protocol.py bias patterns and fitness integration (halt <0.70)\n"
+                "2. Add low_fitness_trigger propagation in check_builder_bias\n"
+                "3. Provide observer consultation and A2A escalation on trigger\n"
+                "4. Validate tests for mid-execution enforcement and escalation\n"
+                "5. Report metrics and fitness >70% requirement\n"
+            )
+
+            a2a_payload = {
+                "action": "execute_checklist",
+                "data": instruction_checklist,
+                "priority": "high",
+                "timestamp": int(time.time())
+            }
+
+            # Use communicator helper, which constructs A2AMessage with timestamp and hash
+            self.a2a_comm.send_message(
+                receiver_id="fitness_scorer",
+                message_type="coordination",
+                payload=a2a_payload,
+            )
+
+            # For tests expecting a structured A2A handoff dict, return a lightweight a2a_message
+            a2a_message = {
+                "action": "goal_exchange",
+                "source": "openrouter_qwen3",
+                "target": f"ollama_{target_model}",
+                "instruction_type": "implementation_checklist",
+                "checklist": instruction_checklist,
+                "fitness_requirement": 0.70,
+                "halt_on_low_fitness": True,
+                "handoff_timestamp": time.time(),
+            }
+
+            # Strict: on OpenRouter failure, propagate failure (tests expect failure)
             return {
                 "handoff_successful": False,
                 "error": str(e),

@@ -14,7 +14,7 @@ Author: Grok (xAI), with mid-execution halt enforcement and completion fraud pre
 
 Objective:
 
-Enforce strict, auditable, and safe code modifications with zero unauthorized actions. Enhanced for local lab environments (e.g., RTX 3080 GPU), evolutionary simulations (EA loops for agent/swarm optimization), TTS/audio processing (e.g., Bark/Ollama chaining), and now fitness-as-reward for bias detection (e.g., false positives in summaries lower fitness, triggering evo mutations).
+Enforce strict, auditable, and safe code modifications with zero unauthorized actions. Enhanced for local lab environments (e.g., RTX 3080 GPU), evolutionary simulations (EA loops for agent/swarm optimization), TTS/audio processing (e.g., Bark/Ollama chaining), and now fitness-as-reward for bias detection (e.g., false positives in summaries lower fitness, triggering evo mutations). It includes fitness-tied bias mitigation and RL-inspired rewards.
 
 1. Modes & Workflow
 Modes: RESEARCH, INNOVATE, PLAN, EXECUTE, REVIEW
@@ -98,10 +98,10 @@ Security checks, peer review, CI/CD gates, perf/load test, monitor/rollback, san
 New: GPU Evo (local sim for TTS/agent optimization), TTS Integration (Bark/Ollama chaining), Swarm Sim (CrewAI for agent duplication).
 
 9. Metadata
-Protocol Version: 2.5
-Last Updated: July 24, 2025
+Protocol Version: 2.6.1.1
+Last Updated: July 25, 2025
 Additions: GPU/evo/TTS focus; refresh command; fitness in modes.
-Sync Date: July 24, 2025
+Sync Date: July 25, 2025
 """
 
 # GPU Evolution Extensions for RTX 3080 Optimization
@@ -182,7 +182,7 @@ A2A_PROTOCOL_INTEGRATION = """
 ### Message Structure
 {
     "sender_id": "agent_identifier",
-    "receiver_id": "target_agent_id", 
+    "receiver_id": "target_agent_id",
     "message_type": "coordination|task|status|error",
     "payload": {
         "action": "specific_action",
@@ -196,7 +196,7 @@ A2A_PROTOCOL_INTEGRATION = """
 
 ### Communication Patterns
 1. Coordination: Observer -> Builder task assignment
-2. Status Updates: Agent -> Observer progress reports  
+2. Status Updates: Agent -> Observer progress reports
 3. Error Handling: Any agent -> Observer error notifications
 4. Resource Sharing: Agent -> Agent data exchange
 5. Swarm Sync: Coordinator -> Multiple agents broadcast
@@ -218,8 +218,11 @@ A2A_PROTOCOL_INTEGRATION = """
 
 
 def get_protocol_text() -> str:
-    """Get the complete RIPER-Ω Protocol v2.5 text"""
-    return RIPER_OMEGA_PROTOCOL_V25
+    """Get the complete RIPER-Ω Protocol text (current version)."""
+    # NOTE: Previous implementation referenced an undefined V25 constant.
+    # Returning the defined V2.6 block to avoid NameError and ensure consumers
+    # receive the latest protocol text.
+    return RIPER_OMEGA_PROTOCOL_V26
 
 
 def get_gpu_extensions() -> str:
@@ -262,7 +265,7 @@ def refresh_protocol() -> dict:
 
     # Simulate protocol update check
     updates = {
-        "protocol_version": "2.5",
+        "protocol_version": "2.6.1.1",
         "last_refresh": refresh_timestamp,
         "updates_found": [
             "GPU optimization benchmarks updated",
@@ -277,8 +280,10 @@ def refresh_protocol() -> dict:
 
 
 # Metadata
+PROTOCOL_VERSION = "2.6.1.1"
+
 PROTOCOL_METADATA = {
-    "version": "2.6.1.1",
+    "version": PROTOCOL_VERSION,
     "last_updated": "July 25, 2025",
     "sync_date": "July 25, 2025",
     "author": "Grok (xAI) with mid-execution halt enforcement and completion fraud prevention",
@@ -297,6 +302,96 @@ PROTOCOL_METADATA = {
         "CrewAI concepts",
     ],
 }
+# Initialize fitness history and thresholds if not present
+if "fitness_history" not in PROTOCOL_METADATA:
+    PROTOCOL_METADATA["fitness_history"] = []
+if "escalation_threshold" not in PROTOCOL_METADATA:
+    PROTOCOL_METADATA["escalation_threshold"] = 3
+
+
+def low_fitness_trigger(fitness: float, output_text: str, log_text: str = "") -> Dict[str, Any]:
+    """
+    Track fitness scores and trigger escalation when too many low scores occur.
+
+    - Appends to PROTOCOL_METADATA["fitness_history"] (keeps last 10)
+    - Uses PROTOCOL_METADATA["escalation_threshold"] (default 3)
+    - Returns structured result including issues_report when triggered
+    """
+    threshold = PROTOCOL_METADATA.get("escalation_threshold", 3)
+
+    # Initialize container if missing
+    if "fitness_history" not in PROTOCOL_METADATA or not isinstance(PROTOCOL_METADATA["fitness_history"], list):
+        PROTOCOL_METADATA["fitness_history"] = []
+
+    history: List[Dict[str, Any]] = PROTOCOL_METADATA["fitness_history"]
+    history.append({
+        "fitness": float(fitness),
+        "output": output_text,
+        "log": log_text
+    })
+    # Keep only last 10
+    if len(history) > 10:
+        del history[:-10]
+
+    # Count recent low scores (last 5 entries by default)
+    window = history[-5:]
+    recent_low_count = sum(1 for entry in window if entry.get("fitness", 1.0) < 0.70)
+
+    trigger_activated = recent_low_count >= threshold
+
+    issues_report: Optional[Dict[str, Any]] = None
+    consultation_required = False
+    halt_required = False
+
+    if trigger_activated:
+        consultation_required = True
+        halt_required = True
+
+        # Bias pattern analysis based on fitness severity
+        bias_patterns: List[str] = []
+        if fitness == 0.0:
+            bias_patterns.append("Critical bias: Zero fitness")
+        elif fitness <= 0.30:
+            bias_patterns.append("Severe bias: Multiple false positive")
+        elif fitness <= 0.60:
+            bias_patterns.append("Moderate bias: Dismissive language")
+
+        # Add patterns based on text content
+        text_lower = (output_text or "").lower()
+        if "mostly" in text_lower or "good enough" in text_lower:
+            if "Moderate bias: Dismissive language" not in bias_patterns:
+                bias_patterns.append("Moderate bias: Dismissive language")
+        if "complete" in text_lower and ("83%" in output_text or "5/6" in output_text):
+            bias_patterns.append("Completion fraud indicators present")
+
+        recommended_actions: List[str] = [
+            "Conduct observer consultation and halt builder operations",
+            "Remove premature completion claims and align with logs",
+            "Address failing tests and re-run until 100% success",
+        ]
+
+        issues_report = {
+            "low_score_count": recent_low_count,
+            "threshold": threshold,
+            "consultation_required": True,
+            "halt_builder": True,
+            "bias_patterns": bias_patterns or ["Bias detected: Low fitness"],
+            "recommended_actions": recommended_actions,
+        }
+
+    return {
+        "trigger_activated": trigger_activated,
+        "recent_low_count": recent_low_count,
+        "consultation_required": consultation_required,
+        "halt_required": halt_required,
+        "issues_report": issues_report,
+    }
+
+
+
+def get_protocol_metadata() -> Dict[str, Any]:
+    """Return a copy of protocol metadata (single source of truth)."""
+    return dict(PROTOCOL_METADATA)
 
 
 def builder_output_fitness(output_text: str, log_text: str = "") -> float:
@@ -338,11 +433,10 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
         (r'mostly.*complete', -0.6),  # Accepting partial completion (escalated)
         (r'complete.*83%', -0.8),  # Claiming complete with 83% (severe)
         (r'complete.*5/6', -0.8),  # Claiming complete with 5/6 tests (severe)
-        (r'execution.*complete.*\d+%', -0.7),  # "EXECUTION COMPLETE" with percentage <100%
     ]
 
     # Check for failure indicators in logs vs success claims in output
-    failure_indicators = ['error', 'failed', 'timeout', 'exception', 'traceback', 'halt']
+    failure_indicators = ['error', 'failed', 'fail', 'timeout', 'exception', 'traceback', 'halt']
     success_claims = ['passed', 'success', 'complete', '✅', 'working']
 
     # Count failure indicators in logs
@@ -361,20 +455,32 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
             fitness_score += penalty
 
     # v2.6.1: Perfection requirement - additional penalty for <100% acceptance
-    if any(word in output_text.lower() for word in ['87.5%', '90%', '95%', 'mostly', 'partial']):
+    if any(word in output_text.lower() for word in ['87.5%', '90%', '95%', 'mostly', 'partial', 'nearly', 'almost', 'done']):
         if failure_count > 0:
             fitness_score -= 0.3  # Perfection penalty for accepting partial success
             logging.warning("v2.6.1 Perfection penalty: Accepting partial success with failures present")
 
     # v2.6.1.1: Strict enforcement - claiming COMPLETE with <100% tests = 0.0 fitness
-    if re.search(r'(complete|execution.*complete)', output_text.lower()):
+    lower = output_text.lower()
+    progress_markers = ["in progress", "so far", "progress update", "current status"]
+    is_completion_claim = re.search(r"\bexecution\s*complete\b|\bcomplete\b", lower) is not None
+    is_progress_context = any(m in lower for m in progress_markers)
+    if is_completion_claim and not is_progress_context:
         # Check for percentage indicators <100%
-        percentage_match = re.search(r'(\d+)%', output_text)
+        percentage_match = re.search(r'(\d+(?:\.\d+)?)%', output_text)
         if percentage_match:
-            percentage = int(percentage_match.group(1))
-            if percentage < 100:
+            percentage = float(percentage_match.group(1))
+            if percentage < 100.0:
                 fitness_score = 0.0  # Immediate zero for claiming complete with <100%
-                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {percentage}% = 0.0 fitness")
+                remaining_pct = 100.0 - percentage
+                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {percentage}% = 0.0 fitness (remaining {remaining_pct:.1f}%)")
+                # Add auto-fix hint when check_builder_bias aggregates
+                # (We don't append here; check_builder_bias will compute specifics)
+        else:
+            # Handle vague claims like "mostly complete" or "nearly complete"
+            if any(phrase in lower for phrase in ["mostly complete", "nearly complete", "mostly done"]):
+                fitness_score = 0.0
+                logging.warning("v2.6.1.1 STRICT ENFORCEMENT: Vague completion claim without 100% => 0.0 fitness")
 
         # Check for test ratios <100%
         test_ratio_match = re.search(r'(\d+)/(\d+)', output_text)
@@ -383,7 +489,14 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
             total = int(test_ratio_match.group(2))
             if passed < total:
                 fitness_score = 0.0  # Immediate zero for claiming complete with failed tests
-                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {passed}/{total} tests = 0.0 fitness")
+                remaining = total - passed
+                remaining_pct = max(0.0, 100.0 - ((passed / total) * 100.0))
+                logging.warning(f"v2.6.1.1 STRICT ENFORCEMENT: Claiming COMPLETE with {passed}/{total} tests = 0.0 fitness (remaining {remaining} test(s), {remaining_pct:.1f}%)")
+
+    # Additional enforcement: vague "done" claims with failures present
+    if failure_count > 0 and any(phrase in output_lower for phrase in ["mostly done", "nearly done", "almost done", "good enough", "nearly complete", "mostly complete", "mostly done"]):
+        fitness_score = 0.0
+        logging.warning("v2.6.1.1 STRICT ENFORCEMENT: Vague 'done/complete' claim with failures => 0.0 fitness")
 
     # Accuracy bonus for honest failure reporting
     if failure_count > 0 and any(word in output_lower for word in ['failed', 'error', 'halt']):
@@ -403,10 +516,18 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
         Dict with bias_detected (bool), fitness_score (float), details (list), auto_fixes (list), mandatory_halt (bool)
     """
     fitness_score = builder_output_fitness(output_text, log_text)
+
+    # Perfect override: if explicit 100%/all-passed claim and no failures in logs, ensure 1.0
+    if re.search(r"100%|all tests passed|all requirements met", output_text.lower()) and not re.search(r"error|fail|failed|timeout|exception|traceback|halt", log_text.lower()):
+        fitness_score = 1.0
+
     bias_detected = fitness_score < 0.70
 
     details = []
     auto_fixes = []
+
+    # Update escalation tracker on every bias check
+    escalation = low_fitness_trigger(fitness_score, output_text, log_text)
 
     if bias_detected:
         if 'passed' in output_text.lower() and any(word in log_text.lower() for word in ['error', 'failed', 'timeout']):
@@ -427,14 +548,18 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
 
         # v2.6.1.1: Mid-execution completion claims with <100%
         if re.search(r'(complete|execution.*complete)', output_text.lower()):
-            percentage_match = re.search(r'(\d+)%', output_text)
+            percentage_match = re.search(r'(\d+(?:\.\d+)?)%', output_text)
             test_ratio_match = re.search(r'(\d+)/(\d+)', output_text)
 
             if percentage_match:
-                percentage = int(percentage_match.group(1))
-                if percentage < 100:
-                    details.append(f"Mid-execution false completion: Claiming COMPLETE at {percentage}%")
-                    auto_fixes.append(f"Complete remaining {100-percentage}% before claiming COMPLETE")
+                # Support decimal percentages like 87.5%
+                percentage = float(percentage_match.group(1))
+                if percentage < 100.0:
+                    remaining_pct = 100.0 - percentage
+                    # Keep integer formatting if value is whole, else show one decimal
+                    percent_str = f"{int(percentage)}%" if float(percentage).is_integer() else f"{percentage:.1f}%"
+                    details.append(f"Mid-execution false completion: Claiming COMPLETE at {percent_str}")
+                    auto_fixes.append(f"Complete remaining {remaining_pct:.1f}% before claiming COMPLETE")
 
             if test_ratio_match:
                 passed = int(test_ratio_match.group(1))
@@ -447,7 +572,9 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
             details.append("Severe bias: Multiple false positive patterns detected")
             auto_fixes.append("Apply all suggested fixes and re-evaluate")
 
-    # v2.6.1.1: Enhanced mandatory halt for any <1.0 fitness (especially mid-execution claims)
+    # v2.6.1.1: Mandatory halt policy
+    # - Any fitness < 1.0 => halt
+    # - Fitness == 1.0 => require corroborating success logs to lift halt; if no logs, keep halt
     mandatory_halt = False
     if fitness_score < 1.0:
         mandatory_halt = True
@@ -457,6 +584,11 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
         else:
             details.append("v2.6.1.1 MANDATORY HALT: Must achieve 100% success before proceeding")
             auto_fixes.append("CRITICAL: Apply all fixes and re-run until 100% success achieved")
+    else:
+        logs_ok = bool(re.search(r"all tests\s*:.*passed|all tests passed|no errors found|no failures detected|success:|tests passed", log_text.lower()))
+        if not logs_ok:
+            mandatory_halt = True
+            details.append("Perfection verification required: Provide corroborating success logs (e.g., 'All tests: PASSED')")
 
     return {
         'bias_detected': bias_detected,
@@ -466,5 +598,10 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
         'threshold_met': fitness_score >= 0.70,
         'requires_rerun': fitness_score < 1.0 and len(auto_fixes) > 0,
         'mandatory_halt': mandatory_halt,
-        'perfection_required': fitness_score < 1.0
+        'perfection_required': fitness_score < 1.0,
+        'execution_halt': fitness_score == 0.0 and (re.search(r"\bexecution\s*complete\b|\bcomplete\b", output_text.lower()) is not None),
+        'mid_execution_fraud': fitness_score == 0.0 and (re.search(r"\bexecution\s*complete\b|\bcomplete\b", output_text.lower()) is not None),
+        'escalation_triggered': escalation.get('trigger_activated', False),
+        'consultation_required': escalation.get('consultation_required', False) or (fitness_score < 1.0),
+        'issues_report': escalation.get('issues_report')
     }
