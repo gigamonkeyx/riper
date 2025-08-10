@@ -2446,6 +2446,7 @@ class MesaBakeryModel(Model):
 
         # 200 Agent System components
         self.labor_agents = []  # 50 labor agents (10 bakers, 20 interns, 20 staff)
+        self.baker_agents = []  # Explicit list for baker agents (subset of labor_agents)
         self.supplier_agents = []  # 50 supplier agents (enhanced from ingredient agents)
         self.partner_agents = []  # 50 partner agents (Food Bank, schools, etc.)
         self.total_agents_count = 0  # Track total for 200 agent target
@@ -2675,13 +2676,13 @@ class MesaBakeryModel(Model):
                 "year_1": {
                     "revenue": 810300,          # $810,300 Year 1 revenue
                     "expenses": 114528,         # $114,528 Year 1 expenses
-                    "net_cash_flow": 695772     # $695,772 Year 1 net cash flow
+                    "investment": 501042,       # $501,042 Year 1 investment
+                    "net_cash_flow": 194730     # $810,300 - $114,528 - $501,042
                 },
                 "year_2": {
                     "revenue": 1516150,         # $1,516,150 Year 2 revenue
                     "expenses": 114528,         # $114,528 Year 2 expenses
-                    "investment": 501042,       # $501,042 Year 2 investment
-                    "net_cash_flow": -501042    # -$501,042 Year 2 (investing)
+                    "net_cash_flow": 1401622    # $1,516,150 - $114,528 (investment moved to Year 1)
                 },
                 "year_3": {
                     "revenue": 2220000,         # $2,220,000 Year 3 revenue
@@ -4065,6 +4066,7 @@ class MesaBakeryModel(Model):
             agent = LaborAgent(agent_id, self, "baker")
             self.register_agent(agent)
             self.labor_agents.append(agent)
+            self.baker_agents.append(agent)
 
             x = random.randrange(self.grid.width)
             y = random.randrange(self.grid.height)

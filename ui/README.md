@@ -2,6 +2,8 @@
 
 Interactive React-based user interface for the Tonasket Bakery Simulation with real-time parameter adjustment and visualization.
 
+Built with **Next.js**, **shadcn/ui**, and **Tailwind CSS** for a modern, accessible, and themeable interface.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -27,6 +29,12 @@ npm install
 npm run dev
 ```
 The UI will be available at `http://localhost:3000`
+
+## 📚 Documentation
+
+- **[Theming Guide](docs/THEMING.md)** - Theme configuration, design tokens, and best practices
+- **[Component Guide](docs/COMPONENT_GUIDE.md)** - shadcn/ui component usage patterns
+- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Development workflow, testing, and deployment
 
 ## 📊 Features
 
@@ -54,24 +62,37 @@ The UI will be available at `http://localhost:3000`
 ## 🔧 Technical Stack
 
 - **Frontend**: React 18.2.0 + Next.js 14.0.0
-- **Styling**: Tailwind CSS 3.3.0
+- **UI Components**: shadcn/ui with Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming
 - **Charts**: Chart.js 4.4.0 + react-chartjs-2 5.2.0
 - **Backend**: Flask API with CORS support
-- **Real-time**: Live calculation updates
+- **Testing**: Playwright for E2E testing
+- **Theme**: next-themes for dark/light mode
+- **Real-time**: Server-sent events for live updates
 
 ## 📁 Project Structure
 
 ```
 ui/
+├── components/
+│   ├── ui/                   # shadcn/ui components
+│   ├── AppShell.jsx          # Main layout wrapper
+│   └── Sidebar.jsx           # Navigation components
+├── docs/                     # Documentation
+│   ├── THEMING.md           # Theme guide
+│   ├── COMPONENT_GUIDE.md   # Component patterns
+│   └── DEVELOPMENT_GUIDE.md # Development workflow
 ├── pages/
-│   └── index.js              # Main page component
+│   ├── index.js             # Dashboard page
+│   ├── funding.js           # Funding management
+│   └── terminal.jsx         # Terminal interface
 ├── styles/
-│   └── globals.css           # Global styles and Tailwind
-├── tonasket-sim-ui.jsx       # Main UI component
-├── package.json              # Dependencies
-├── tailwind.config.js        # Tailwind configuration
-├── next.config.js            # Next.js configuration
-└── README.md                 # This file
+│   └── globals.css          # Global styles + shadcn base
+├── tests/
+│   └── ui.spec.ts           # Playwright E2E tests
+├── components.json          # shadcn/ui configuration
+├── tailwind.config.js       # Tailwind configuration
+└── package.json             # Dependencies
 
 ../
 ├── simple_ui_api.py          # Flask API backend

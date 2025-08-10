@@ -68,7 +68,10 @@ class SDSystem:
             "state_license_fee_annual": 200.0,  # $200/year state license fee
             "license_compliance_rate": 1.0,  # License compliance (1.0 = fully compliant)
             "license_fee_paid": 0.0,  # Annual license fee paid
-            "license_renewal_due": 365.0  # Days until license renewal
+            "license_renewal_due": 365.0,  # Days until license renewal
+            "acquisition_year": 1,
+            "audit_expected_year": 3,
+            "reap_enabled": False
         }
         self.loop_history = []
 
@@ -215,6 +218,27 @@ class SDSystem:
             "monthly_savings": -1333    # $750 rental - $2,083 costs = -$1,333 increase
         }
 
+        # Donations & Funding enrichment models
+        self.donation_model = {
+            "segments": [
+                {"name": "individuals", "percent": 0.5, "avg_gift": 40.0, "frequency_per_year": 2.0},
+                {"name": "foundations", "percent": 0.3, "avg_gift": 5000.0, "frequency_per_year": 0.6},
+                {"name": "corporate", "percent": 0.2, "avg_gift": 1500.0, "frequency_per_year": 0.5}
+            ],
+            "in_kind": {"ingredients": 10000.0, "packaging": 3000.0, "equipment": 10000.0},
+            "realization_rate": 0.85,           # 85% of pledges realized within year
+            "processing_fee_rate": 0.02         # 2% average processing/admin fees on cash donations
+        }
+
+        self.funding_costs = {
+            "reimbursement_lag_days": 45,        # avg days to reimbursement on federal grants
+            "avg_hourly_cost": 28.0,             # fully loaded admin hourly cost
+            "compliance_hours_monthly_base": 12, # ongoing grants compliance hours per month
+            "compliance_hours_monthly_audit": 30,# additional hours/month in audit year
+            "development_hours_monthly": 20,     # grant writing/report prep baseline
+            "opportunity_cost_rate": 0.06        # 6% annual opportunity/interest cost
+        }
+
         # 50% Free Output for Grant Compliance (enhanced with flour per loaf)
         self.free_output_system = {
             "compliance_percentage": 0.50,  # 50% of production
@@ -340,23 +364,23 @@ class SDSystem:
             "refund_program": {
                 "refund_per_jar": 0.50,         # $0.50 refund per returned jar
                 "return_rate": 0.50,            # 50% jar return rate
-                "daily_refunds_year2": 50,      # 50 jars returned/day Year 2
-                "daily_refunds_year3": 150      # 150 jars returned/day Year 3 (reduced from 500)
+                "daily_refunds_year1": 50,
+                "daily_refunds_year2": 150
             },
             "production_schedule": {
-                "year_2": {
-                    "daily_jars": 100,          # 100 jars/day Year 2
-                    "selling_price": 3.00,      # $3.00 per jar
-                    "daily_revenue": 300,       # $300/day revenue
-                    "daily_cost": 250,          # $250/day cost (100 × $2.50)
-                    "daily_refunds": 25         # $25/day refunds (50 × $0.50)
+                "year_1": {
+                    "daily_jars": 100,
+                    "selling_price": 3.00,
+                    "daily_revenue": 300,
+                    "daily_cost": 250,
+                    "daily_refunds": 25
                 },
-                "year_3": {
-                    "daily_jars": 300,          # 300 jars/day Year 3 (reduced from 1,000)
-                    "selling_price": 3.00,      # $3.00 per jar
-                    "daily_revenue": 900,       # $900/day revenue (300 × $3.00)
-                    "daily_cost": 750,          # $750/day cost (300 × $2.50)
-                    "daily_refunds": 75         # $75/day refunds (150 × $0.50)
+                "year_2": {
+                    "daily_jars": 300,
+                    "selling_price": 3.00,
+                    "daily_revenue": 900,
+                    "daily_cost": 750,
+                    "daily_refunds": 75
                 }
             },
             "jar_specifications": {
@@ -376,7 +400,7 @@ class SDSystem:
         }
 
         # Log mason jars implementation
-        logger.info(f"SD: Mason jars active. Output 100 jars/day Year 2, 300 Year 3. Revenue $900/day Year 3. Cost $825/day. Refund $75/day. Fitness impact: 0.85.")
+        logger.info(f"SD: Mason jars active. Output 100 jars/day Year 1, 300 Year 2. Revenue $900/day Year 2. Cost $825/day. Refund $75/day. Fitness impact: 0.85.")
 
         # FINAL IMPLEMENTATION: Fruit Locker System (UPDATED SPECS)
         self.fruit_locker_system = {
@@ -624,7 +648,7 @@ class SDSystem:
                 "bread_revenue": 660285,        # $1,809/day × 365 = $660K (retail cap + wholesale)
                 "flour_revenue": 584000,        # $1,600/day × 365 = $584K (flour sales)
                 "meat_products_revenue": 182500, # Empanadas + meat pies revenue
-                "jar_revenue": 328500,          # Mason jars revenue Year 3 ($900/day × 365)
+                "jar_revenue": 328500,          # Mason jars revenue Year 2 ($900/day × 365)
                 "bundle_revenue": 273750,       # Premium bundles revenue Year 3 ($750/day × 365)
                 "pan_revenue": 146000,          # Custom pie pans revenue Year 3 ($400/day × 365)
                 "fruit_revenue": 45625,         # Fruit products revenue ($125/day × 365)
@@ -3467,12 +3491,147 @@ Format: Brief analysis (2-3 sentences)"""
         if reporting_loop:
             compliance_effectiveness = grant_metrics["compliance_rate"]
             reporting_efficiency = min(1.0, reports_per_year / 20)  # Target 20 reports/year max
-            audit_readiness = min(1.0, revenue_to_community / 1000000)  # $1M+ shows strong program
+    async def simulate_funding_costs(self, active_program_ids: list = None, override_current_year: int = None) -> Dict[str, Any]:
+        """Estimate monthly compliance and development cost, plus reimbursement cashflow cost.
+        Soft audit flag increases compliance in audit_expected_year."""
+        if active_program_ids is None:
+            active_program_ids = ["cfpcgp","lfpp","vapg","omdg","rbdg","community_facilities"]
 
-            reporting_loop.current_state["compliance_rate"] = compliance_effectiveness
-            reporting_loop.current_state["reporting_accuracy"] = 0.95
-            reporting_loop.current_state["grant_requirements"] = free_output_compliance
-            reporting_loop.current_state["audit_readiness"] = audit_readiness
+        # Base hours scale with number of active programs
+        programs_count = len(active_program_ids)
+        base_hours = self.funding_costs["compliance_hours_monthly_base"] * max(1, programs_count)
+        dev_hours = self.funding_costs["development_hours_monthly"]
+
+        # Audit effect if current year >= audit_expected_year
+        audit_extra = 0
+        current_year = override_current_year if override_current_year is not None else self._get_current_year()
+        if current_year >= self.system_state.get("audit_expected_year", 99):
+            audit_extra = self.funding_costs["compliance_hours_monthly_audit"]
+
+        total_hours = base_hours + dev_hours + audit_extra
+        labor_cost = total_hours * self.funding_costs["avg_hourly_cost"]
+
+        # Reimbursement lag carrying cost (opportunity cost on an assumed monthly reimbursable amount)
+        reimbursable = self.reporting_system["annual_financials"]["grants_donations"] / 12.0
+        daily_rate = self.funding_costs["opportunity_cost_rate"] / 365.0
+        lag_days = self.funding_costs["reimbursement_lag_days"]
+        carry_cost = reimbursable * daily_rate * lag_days
+
+        return {
+            "programs_count": programs_count,
+            "hours": {"base": base_hours, "development": dev_hours, "audit_extra": audit_extra, "total": total_hours},
+            "monthly_labor_cost": labor_cost,
+            "reimbursement_carry_cost": carry_cost,
+            "monthly_total_cost": labor_cost + carry_cost,
+            "year": current_year
+        }
+
+    def _get_current_year(self) -> int:
+        """Simplified current year calculator. Replace with real sim clock if available."""
+        # Try derive from loop history or default to 1
+        if self.loop_history:
+            # assume one entry per day, 365 days per year
+            days = len(self.loop_history)
+            return max(1, (days // 365) + 1)
+        return 1
+    async def simulate_snap_wic_discount_curve(self,
+                                           base_units_per_month: int = 8000,
+                                           avg_unit_price: float = 5.00,
+                                           unit_cogs: float = 1.81,
+                                           discount_grid: list = None,
+                                           elasticity: float = -0.6) -> Dict[str, Any]:
+        """Compute cost-benefit curve for SNAP/WIC price discounts on staple items.
+        Uses constant elasticity demand approximation.
+        Returns arrays of discount -> (units, revenue, gross_margin, net_effect).
+        """
+        if discount_grid is None:
+            discount_grid = [0.0, 0.05, 0.10, 0.15, 0.20]
+
+        results = []
+        for d in discount_grid:
+            price = avg_unit_price * (1 - d)
+            # quantity response: Q = Q0 * (P/P0)^{elasticity}
+            q = base_units_per_month * ((price / avg_unit_price) ** elasticity)
+            revenue = q * price
+            gross_profit = q * (price - unit_cogs)
+            # For nonprofit, margin hit may be offset by mission impact; we return raw economics
+            results.append({
+                "discount": d,
+                "units": q,
+                "price": price,
+                "revenue": revenue,
+                "gross_profit": gross_profit
+            })
+
+        # Identify near-optimal discount by gross_profit (economic view)
+        best = max(results, key=lambda r: r["gross_profit"])
+        return {"curve": results, "best": best, "assumptions": {
+            "base_units": base_units_per_month,
+            "avg_price": avg_unit_price,
+            "unit_cogs": unit_cogs,
+            "elasticity": elasticity
+        }}
+
+    async def simulate_donations_summary(self, base_cash_annual: float = 50000.0) -> Dict[str, Any]:
+        """Summarize donations: cash (gross/realized/net), fees, in-kind, and totals.
+        base_cash_annual can be tuned from UI or configs.
+        """
+        dm = self.donation_model
+        gross_cash = base_cash_annual
+        realized_cash = gross_cash * dm["realization_rate"]
+        processing_fees = realized_cash * dm["processing_fee_rate"]
+        net_cash = realized_cash - processing_fees
+
+        in_kind_total = 0.0
+        in_kind_breakdown = {}
+        for k, v in (dm.get("in_kind") or {}).items():
+            in_kind_breakdown[k] = float(v)
+            in_kind_total += float(v)
+
+        segments = []
+        for seg in dm["segments"]:
+            seg_gross = gross_cash * seg["percent"]
+            seg_realized = seg_gross * dm["realization_rate"]
+            seg_fees = seg_realized * dm["processing_fee_rate"]
+            seg_net = seg_realized - seg_fees
+            segments.append({
+                "name": seg["name"],
+                "percent": seg["percent"],
+                "gross": seg_gross,
+                "realized": seg_realized,
+                "fees": seg_fees,
+                "net": seg_net
+            })
+
+        annual = {
+            "gross_cash": gross_cash,
+            "realized_cash": realized_cash,
+            "processing_fees": processing_fees,
+            "net_cash": net_cash,
+            "in_kind_total": in_kind_total,
+            "total_support": net_cash + in_kind_total
+        }
+        monthly = {k: v/12.0 for k, v in annual.items()}
+
+        return {
+            "annual": annual,
+            "monthly": monthly,
+            "segments": segments,
+            "in_kind_breakdown": in_kind_breakdown,
+            "assumptions": {
+                "realization_rate": dm["realization_rate"],
+                "processing_fee_rate": dm["processing_fee_rate"],
+                "base_cash_annual": base_cash_annual
+            }
+        }
+
+        # Audit readiness derived from community revenue scale
+        audit_readiness = min(1.0, revenue_to_community / 1000000)  # $1M+ shows strong program
+
+        reporting_loop.current_state["compliance_rate"] = compliance_effectiveness
+        reporting_loop.current_state["reporting_accuracy"] = 0.95
+        reporting_loop.current_state["grant_requirements"] = free_output_compliance
+        reporting_loop.current_state["audit_readiness"] = audit_readiness
 
         # Calculate fitness impact
         compliance_strength = grant_metrics["compliance_rate"]

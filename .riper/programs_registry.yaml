@@ -1,0 +1,184 @@
+# Central Program Registry for Funding/Grants (analysis + ranking)
+# REAP included but disabled by default per user request
+
+programs:
+  cfpcgp:
+    name: "Community Food Projects Competitive Grant Program"
+    category: "food_systems"
+    type: "grant"
+    enabled: true
+    typical_award_min: 35000
+    typical_award_max: 400000
+    cost_share_rule: "1:1 match (cash/in-kind); verify current NOFO"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard"
+    audit_sensitivity: "medium"
+    mission_tags: ["food_security","underserved","community"]
+
+  lfpp:
+    name: "Local Food Promotion Program"
+    category: "food_systems"
+    type: "grant"
+    enabled: true
+    typical_award_min: 100000
+    typical_award_max: 500000
+    cost_share_rule: "~25% match; verify NOFO"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard"
+    audit_sensitivity: "medium"
+    mission_tags: ["local_food","aggregation","distribution"]
+
+  fmpp:
+    name: "Farmers Market Promotion Program"
+    category: "food_systems"
+    type: "grant"
+    enabled: true
+    typical_award_min: 75000
+    typical_award_max: 500000
+    cost_share_rule: "~25% match; verify NOFO"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard"
+    audit_sensitivity: "medium"
+    mission_tags: ["direct_to_consumer","access","markets"]
+
+  vapg:
+    name: "Value-Added Producer Grant"
+    category: "value_added"
+    type: "grant"
+    enabled: true
+    typical_award_min: 50000
+    typical_award_max: 500000
+    cost_share_rule: "1:1 cost share; planning lower caps"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard"
+    audit_sensitivity: "high"
+    mission_tags: ["value_added","producer","working_capital"]
+
+  omdg:
+    name: "Organic Market Development Grant"
+    category: "market_development"
+    type: "grant"
+    enabled: true
+    typical_award_min: 100000
+    typical_award_max: 2000000
+    cost_share_rule: "Often 50% cost share; tier dependent"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, robust"
+    audit_sensitivity: "high"
+    mission_tags: ["organic","supply_chain","processing"]
+
+  rbdg:
+    name: "Rural Business Development Grant"
+    category: "rural_development"
+    type: "grant"
+    enabled: true
+    typical_award_min: 10000
+    typical_award_max: 500000
+    cost_share_rule: "No fixed match; leverage encouraged"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard; env review for some activities"
+    audit_sensitivity: "medium"
+    mission_tags: ["small_business","ta","equipment","planning"]
+
+  community_facilities:
+    name: "Community Facilities Direct Loan & Grant Program"
+    category: "infrastructure"
+    type: "loan_grant_mix"
+    enabled: true
+    grant_share_up_to: 0.75
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["construction","quarterly","annual"]
+    procurement_rigor: "Construction + 2 CFR 200; NEPA/Section 106"
+    audit_sensitivity: "high"
+    mission_tags: ["facility","essential_services","underserved"]
+
+  _reap:
+    name: "Rural Energy for America Program"
+    category: "energy"
+    type: "grant_loan"
+    enabled: false
+    note: "Disabled by default per user; keep in registry for analysis"
+    grant_share_up_to: 0.50
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["annual"]
+    procurement_rigor: "Energy audit + 2 CFR 200"
+    audit_sensitivity: "medium"
+    mission_tags: ["energy_efficiency","renewables"]
+
+  _2501:
+    name: "Outreach to Socially Disadvantaged and Veteran Farmers (2501)"
+    category: "outreach"
+    type: "grant"
+    enabled: true
+    typical_award_min: 100000
+    typical_award_max: 750000
+    cost_share_rule: "No statutory match"
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["quarterly","annual"]
+    procurement_rigor: "2 CFR 200, standard"
+    audit_sensitivity: "medium"
+    mission_tags: ["education","outreach","equity"]
+
+  tefap:
+    name: "The Emergency Food Assistance Program (TEFAP)"
+    category: "assistance"
+    type: "in_kind_plus_admin"
+    enabled: true
+    admin_funding: true
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["monthly","quarterly"]
+    procurement_rigor: "State-administered; inventory controls"
+    audit_sensitivity: "high"
+    mission_tags: ["food_bank","commodities","distribution"]
+
+  csfp:
+    name: "Commodity Supplemental Food Program (CSFP)"
+    category: "assistance"
+    type: "in_kind_plus_admin"
+    enabled: true
+    admin_funding: true
+    reimbursement: true
+    advance_allowed: false
+    reporting_cadence: ["monthly","quarterly"]
+    procurement_rigor: "State-administered; inventory controls"
+    audit_sensitivity: "high"
+    mission_tags: ["seniors","commodities","distribution"]
+
+  snap_retail:
+    name: "SNAP Retail Authorization"
+    category: "retail_access"
+    type: "authorization"
+    enabled: true
+    equipment_needed: true
+    price_incentives_possible: true
+    reporting_cadence: ["periodic"]
+    audit_sensitivity: "low"
+    mission_tags: ["access","low_income","grocery"]
+
+  wic_vendor:
+    name: "WIC Authorized Vendor"
+    category: "retail_access"
+    type: "authorization"
+    enabled: true
+    equipment_needed: true
+    price_incentives_possible: false
+    reporting_cadence: ["periodic"]
+    audit_sensitivity: "medium"
+    mission_tags: ["access","women_infants_children"]
+

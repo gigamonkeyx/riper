@@ -2,9 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    appDir: false,
-  },
   env: {
     SIMULATION_API_URL: process.env.SIMULATION_API_URL || 'http://localhost:8000',
     OLLAMA_API_URL: process.env.OLLAMA_API_URL || 'http://localhost:11434',

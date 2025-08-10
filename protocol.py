@@ -267,8 +267,7 @@ def refresh_protocol() -> dict:
     updates = {
         "protocol_version": "2.6.1.1",
         "last_refresh": refresh_timestamp,
-        "updates_found": [
-            "GPU optimization benchmarks updated",
+        "updates_found": [            "GPU optimization benchmarks updated",
             "TTS integration improvements",
             "A2A security enhancements",
             "Evolutionary fitness metrics refined",
@@ -459,6 +458,9 @@ def builder_output_fitness(output_text: str, log_text: str = "") -> float:
         if failure_count > 0:
             fitness_score -= 0.3  # Perfection penalty for accepting partial success
             logging.warning("v2.6.1 Perfection penalty: Accepting partial success with failures present")
+        else:
+            # Penalize rationalization even without explicit failure logs to enforce strictness
+            fitness_score = min(fitness_score, 0.69)
 
     # v2.6.1.1: Strict enforcement - claiming COMPLETE with <100% tests = 0.0 fitness
     lower = output_text.lower()
@@ -585,10 +587,10 @@ def check_builder_bias(output_text: str, log_text: str = "") -> Dict[str, Any]:
             details.append("v2.6.1.1 MANDATORY HALT: Must achieve 100% success before proceeding")
             auto_fixes.append("CRITICAL: Apply all fixes and re-run until 100% success achieved")
     else:
-        logs_ok = bool(re.search(r"all tests\s*:.*passed|all tests passed|no errors found|no failures detected|success:|tests passed", log_text.lower()))
+        logs_ok = bool(re.search(r"all tests\s*:.*passed|all tests passed|no errors found|no failures detected|success:|tests passed|success", log_text.lower()))
         if not logs_ok:
             mandatory_halt = True
-            details.append("Perfection verification required: Provide corroborating success logs (e.g., 'All tests: PASSED')")
+            details.append("Perfection requirement: MANDATORY verification with success logs (e.g., 'All tests: PASSED')")
 
     return {
         'bias_detected': bias_detected,

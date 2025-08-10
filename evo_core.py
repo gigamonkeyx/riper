@@ -399,6 +399,17 @@ class NeuroEvolutionEngine:
 
         return best_fitness
 
+    # Backwards-compat convenience methods expected by some tests
+    def evaluate_population(self) -> List[float]:
+        """Evaluate current population and return individual fitness scores (compat)."""
+        scores = [self._compute_fitness(net) for net in self.population]
+        return scores
+
+    def evolve(self) -> None:
+        """Perform one evolution step equivalent to evolve_generation for compatibility."""
+        self.evolve_generation()
+
+
     def _apply_deap_evolution(self, fitness_scores: List[float]):
         """Apply DEAP genetic algorithm evolution with performance optimizations"""
         start_time = time.time()
